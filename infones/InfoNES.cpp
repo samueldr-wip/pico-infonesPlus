@@ -40,16 +40,18 @@
 #include "InfoNES_Mapper.h"
 #include "InfoNES_pAPU.h"
 #include "K6502.h"
+#include <assert.h>
+#include <pico.h>
 
 /*-------------------------------------------------------------------*/
 /*  NES resources                                                    */
 /*-------------------------------------------------------------------*/
 
 /* RAM */
-BYTE RAM[ RAM_SIZE ];
+BYTE RAM[RAM_SIZE];
 
 /* SRAM */
-BYTE SRAM[ SRAM_SIZE ];
+BYTE SRAM[SRAM_SIZE];
 
 /* ROM */
 BYTE *ROM;
@@ -68,16 +70,16 @@ BYTE *ROMBANK3;
 /*-------------------------------------------------------------------*/
 
 /* PPU RAM */
-BYTE PPURAM[ PPURAM_SIZE ];
+BYTE PPURAM[PPURAM_SIZE];
 
 /* VROM */
 BYTE *VROM;
 
 /* PPU BANK ( 1Kb * 16 ) */
-BYTE *PPUBANK[ 16 ];
+BYTE *PPUBANK[16];
 
 /* Sprite RAM */
-BYTE SPRRAM[ SPRRAM_SIZE ];
+BYTE SPRRAM[SPRRAM_SIZE];
 
 /* PPU Register */
 BYTE PPU_R0;
@@ -115,7 +117,7 @@ WORD PPU_Increment;
 WORD PPU_Scanline;
 
 /* Scanline Table */
-BYTE PPU_ScanTable[ 263 ];
+BYTE PPU_ScanTable[263];
 
 /* Name Table Bank */
 BYTE PPU_NameTableBank;
@@ -138,7 +140,7 @@ BYTE byVramWriteEnable;
 /* PPU Address and Scroll Latch Flag*/
 BYTE PPU_Latch_Flag;
 
-/* Up and Down Clipping Flag ( 0: non-clip, 1: clip ) */ 
+/* Up and Down Clipping Flag ( 0: non-clip, 1: clip ) */
 BYTE PPU_UpDown_Clip;
 
 /* Frame IRQ ( 0: Disabled, 1: Enabled )*/
@@ -159,35 +161,40 @@ WORD DoubleFrame[ 2 ][ NES_DISP_WIDTH * NES_DISP_HEIGHT ];
 WORD *WorkFrame;
 WORD WorkFrameIdx;
 #else
-WORD WorkFrame[ NES_DISP_WIDTH * NES_DISP_HEIGHT ];
+//WORD WorkFrame[ NES_DISP_WIDTH * NES_DISP_HEIGHT ];
+WORD *WorkLine = nullptr;
+void InfoNES_SetLineBuffer(WORD *p, WORD size)
+{
+  assert(size >= NES_DISP_WIDTH);
+  WorkLine = p;
+}
 #endif
 
 /* Character Buffer */
-BYTE ChrBuf[ 256 * 2 * 8 * 8 ];
+BYTE ChrBuf[256 * 2 * 8 * 8];
 
 /* Update flag for ChrBuf */
 BYTE ChrBufUpdate;
 
 /* Palette Table */
-WORD PalTable[ 32 ];
+WORD PalTable[32];
 
 /* Table for Mirroring */
-BYTE PPU_MirrorTable[][ 4 ] =
-{
-  { NAME_TABLE0, NAME_TABLE0, NAME_TABLE1, NAME_TABLE1 },
-  { NAME_TABLE0, NAME_TABLE1, NAME_TABLE0, NAME_TABLE1 },
-  { NAME_TABLE1, NAME_TABLE1, NAME_TABLE1, NAME_TABLE1 },
-  { NAME_TABLE0, NAME_TABLE0, NAME_TABLE0, NAME_TABLE0 },
-  { NAME_TABLE0, NAME_TABLE1, NAME_TABLE2, NAME_TABLE3 },
-  { NAME_TABLE0, NAME_TABLE0, NAME_TABLE0, NAME_TABLE1 }
-};
+BYTE PPU_MirrorTable[][4] =
+    {
+        {NAME_TABLE0, NAME_TABLE0, NAME_TABLE1, NAME_TABLE1},
+        {NAME_TABLE0, NAME_TABLE1, NAME_TABLE0, NAME_TABLE1},
+        {NAME_TABLE1, NAME_TABLE1, NAME_TABLE1, NAME_TABLE1},
+        {NAME_TABLE0, NAME_TABLE0, NAME_TABLE0, NAME_TABLE0},
+        {NAME_TABLE0, NAME_TABLE1, NAME_TABLE2, NAME_TABLE3},
+        {NAME_TABLE0, NAME_TABLE0, NAME_TABLE0, NAME_TABLE1}};
 
 /*-------------------------------------------------------------------*/
 /*  APU and Pad resources                                            */
 /*-------------------------------------------------------------------*/
 
 /* APU Register */
-BYTE APU_Reg[ 0x18 ];
+BYTE APU_Reg[0x18];
 
 /* APU Mute ( 0:OFF, 1:ON ) */
 int APU_Mute = 0;
@@ -206,21 +213,22 @@ DWORD PAD2_Bit;
 /* Initialize Mapper */
 void (*MapperInit)();
 /* Write to Mapper */
-void (*MapperWrite)( WORD wAddr, BYTE byData );
+void (*MapperWrite)(WORD wAddr, BYTE byData);
 /* Write to SRAM */
-void (*MapperSram)( WORD wAddr, BYTE byData );
+void (*MapperSram)(WORD wAddr, BYTE byData);
 /* Write to Apu */
-void (*MapperApu)( WORD wAddr, BYTE byData );
+void (*MapperApu)(WORD wAddr, BYTE byData);
 /* Read from Apu */
-BYTE (*MapperReadApu)( WORD wAddr );
+BYTE(*MapperReadApu)
+(WORD wAddr);
 /* Callback at VSync */
 void (*MapperVSync)();
 /* Callback at HSync */
 void (*MapperHSync)();
 /* Callback at PPU read/write */
-void (*MapperPPU)( WORD wAddr );
+void (*MapperPPU)(WORD wAddr);
 /* Callback at Rendering Screen 1:BG, 0:Sprite */
-void (*MapperRenderScreen)( BYTE byMode );
+void (*MapperRenderScreen)(BYTE byMode);
 
 /*-------------------------------------------------------------------*/
 /*  ROM information                                                  */
@@ -248,7 +256,7 @@ BYTE ROM_FourScr;
 /*===================================================================*/
 void InfoNES_Init()
 {
-/*
+  /*
  *  Initialize InfoNES
  *
  *  Remarks
@@ -260,21 +268,18 @@ void InfoNES_Init()
   K6502_Init();
 
   // Initialize Scanline Table
-  for ( nIdx = 0; nIdx < 263; ++nIdx )
+  for (nIdx = 0; nIdx < 263; ++nIdx)
   {
-    if ( nIdx < SCAN_ON_SCREEN_START )
-      PPU_ScanTable[ nIdx ] = SCAN_ON_SCREEN;
+    if (nIdx < SCAN_ON_SCREEN_START)
+      PPU_ScanTable[nIdx] = SCAN_ON_SCREEN;
+    else if (nIdx < SCAN_BOTTOM_OFF_SCREEN_START)
+      PPU_ScanTable[nIdx] = SCAN_ON_SCREEN;
+    else if (nIdx < SCAN_UNKNOWN_START)
+      PPU_ScanTable[nIdx] = SCAN_ON_SCREEN;
+    else if (nIdx < SCAN_VBLANK_START)
+      PPU_ScanTable[nIdx] = SCAN_UNKNOWN;
     else
-    if ( nIdx < SCAN_BOTTOM_OFF_SCREEN_START )
-      PPU_ScanTable[ nIdx ] = SCAN_ON_SCREEN;
-    else
-    if ( nIdx < SCAN_UNKNOWN_START )
-      PPU_ScanTable[ nIdx ] = SCAN_ON_SCREEN;
-    else
-    if ( nIdx < SCAN_VBLANK_START )
-      PPU_ScanTable[ nIdx ] = SCAN_UNKNOWN;
-    else
-      PPU_ScanTable[ nIdx ] = SCAN_VBLANK;
+      PPU_ScanTable[nIdx] = SCAN_VBLANK;
   }
 }
 
@@ -285,7 +290,7 @@ void InfoNES_Init()
 /*===================================================================*/
 void InfoNES_Fin()
 {
-/*
+  /*
  *  Completion treatment
  *
  *  Remarks
@@ -303,9 +308,9 @@ void InfoNES_Fin()
 /*                  InfoNES_Load() : Load a cassette                 */
 /*                                                                   */
 /*===================================================================*/
-int InfoNES_Load( const char *pszFileName )
+int InfoNES_Load(const char *pszFileName)
 {
-/*
+  /*
  *  Load a cassette
  *
  *  Parameters
@@ -325,11 +330,11 @@ int InfoNES_Load( const char *pszFileName )
   InfoNES_ReleaseRom();
 
   // Read a ROM image in the memory
-  if ( InfoNES_ReadRom( pszFileName ) < 0 )
+  if (InfoNES_ReadRom(pszFileName) < 0)
     return -1;
 
   // Reset InfoNES
-  if ( InfoNES_Reset() < 0 )
+  if (InfoNES_Reset() < 0)
     return -1;
 
   // Successful
@@ -343,7 +348,7 @@ int InfoNES_Load( const char *pszFileName )
 /*===================================================================*/
 int InfoNES_Reset()
 {
-/*
+  /*
  *  Reset InfoNES
  *
  *  Return values
@@ -365,13 +370,13 @@ int InfoNES_Reset()
   MapperNo = NesHeader.byInfo1 >> 4;
 
   // Check bit counts of Mapper No.
-  for ( nIdx = 4; nIdx < 8 && NesHeader.byReserve[ nIdx ] == 0; ++nIdx )
+  for (nIdx = 4; nIdx < 8 && NesHeader.byReserve[nIdx] == 0; ++nIdx)
     ;
 
-  if ( nIdx == 8 )
+  if (nIdx == 8)
   {
     // Mapper Number is 8bits
-    MapperNo |= ( NesHeader.byInfo2 & 0xf0 );
+    MapperNo |= (NesHeader.byInfo2 & 0xf0);
   }
 
   // Get information on the ROM
@@ -385,7 +390,7 @@ int InfoNES_Reset()
   /*-------------------------------------------------------------------*/
 
   // Clear RAM
-  InfoNES_MemorySet( RAM, 0, sizeof RAM );
+  InfoNES_MemorySet(RAM, 0, sizeof RAM);
 
   // Reset frame skip and frame count
   FrameSkip = 0;
@@ -401,10 +406,10 @@ int InfoNES_Reset()
   ChrBufUpdate = 0xff;
 
   // Reset palette table
-  InfoNES_MemorySet( PalTable, 0, sizeof PalTable );
+  InfoNES_MemorySet(PalTable, 0, sizeof PalTable);
 
   // Reset APU register
-  InfoNES_MemorySet( APU_Reg, 0, sizeof APU_Reg );
+  InfoNES_MemorySet(APU_Reg, 0, sizeof APU_Reg);
 
   // Reset joypad
   PAD1_Latch = PAD2_Latch = PAD_System = 0;
@@ -427,21 +432,21 @@ int InfoNES_Reset()
   /*-------------------------------------------------------------------*/
 
   // Get Mapper Table Index
-  for ( nIdx = 0; MapperTable[ nIdx ].nMapperNo != -1; ++nIdx )
+  for (nIdx = 0; MapperTable[nIdx].nMapperNo != -1; ++nIdx)
   {
-    if ( MapperTable[ nIdx ].nMapperNo == MapperNo )
+    if (MapperTable[nIdx].nMapperNo == MapperNo)
       break;
   }
 
-  if ( MapperTable[ nIdx ].nMapperNo == -1 )
+  if (MapperTable[nIdx].nMapperNo == -1)
   {
     // Non support mapper
-    InfoNES_MessageBox( "Mapper #%d is unsupported.\n", MapperNo );
+    InfoNES_MessageBox("Mapper #%d is unsupported.\n", MapperNo);
     return -1;
   }
 
   // Set up a mapper initialization function
-  MapperTable[ nIdx ].pMapperInit();
+  MapperTable[nIdx].pMapperInit();
 
   /*-------------------------------------------------------------------*/
   /*  Reset CPU                                                        */
@@ -460,15 +465,15 @@ int InfoNES_Reset()
 /*===================================================================*/
 void InfoNES_SetupPPU()
 {
-/*
+  /*
  *  Initialize PPU
  *
  */
   int nPage;
 
   // Clear PPU and Sprite Memory
-  InfoNES_MemorySet( PPURAM, 0, sizeof PPURAM );
-  InfoNES_MemorySet( SPRRAM, 0, sizeof SPRRAM );
+  InfoNES_MemorySet(PPURAM, 0, sizeof PPURAM);
+  InfoNES_MemorySet(SPRRAM, 0, sizeof SPRRAM);
 
   // Reset PPU Register
   PPU_R0 = PPU_R1 = PPU_R2 = PPU_R3 = PPU_R7 = 0;
@@ -493,7 +498,7 @@ void InfoNES_SetupPPU()
   // Reset scanline
   PPU_Scanline = 0;
 
-  // Reset hit position of sprite #0 
+  // Reset hit position of sprite #0
   SpriteJustHit = 0;
 
   // Reset information on PPU_R0
@@ -504,14 +509,14 @@ void InfoNES_SetupPPU()
   PPU_SP_Height = 8;
 
   // Reset PPU banks
-  for ( nPage = 0; nPage < 16; ++nPage )
-    PPUBANK[ nPage ] = &PPURAM[ nPage * 0x400 ];
+  for (nPage = 0; nPage < 16; ++nPage)
+    PPUBANK[nPage] = &PPURAM[nPage * 0x400];
 
   /* Mirroring of Name Table */
-  InfoNES_Mirroring( ROM_Mirroring );
+  InfoNES_Mirroring(ROM_Mirroring);
 
   /* Reset VRAM Write Enable */
-  byVramWriteEnable = ( NesHeader.byVRomSize == 0 ) ? 1 : 0;
+  byVramWriteEnable = (NesHeader.byVRomSize == 0) ? 1 : 0;
 }
 
 /*===================================================================*/
@@ -519,9 +524,9 @@ void InfoNES_SetupPPU()
 /*       InfoNES_Mirroring() : Set up a Mirroring of Name Table      */
 /*                                                                   */
 /*===================================================================*/
-void InfoNES_Mirroring( int nType )
+void InfoNES_Mirroring(int nType)
 {
-/*
+  /*
  *  Set up a Mirroring of Name Table
  *
  *  Parameters
@@ -535,10 +540,10 @@ void InfoNES_Mirroring( int nType )
  *        5 : Special for Mapper #233
  */
 
-  PPUBANK[ NAME_TABLE0 ] = &PPURAM[ PPU_MirrorTable[ nType ][ 0 ] * 0x400 ];
-  PPUBANK[ NAME_TABLE1 ] = &PPURAM[ PPU_MirrorTable[ nType ][ 1 ] * 0x400 ];
-  PPUBANK[ NAME_TABLE2 ] = &PPURAM[ PPU_MirrorTable[ nType ][ 2 ] * 0x400 ];
-  PPUBANK[ NAME_TABLE3 ] = &PPURAM[ PPU_MirrorTable[ nType ][ 3 ] * 0x400 ];
+  PPUBANK[NAME_TABLE0] = &PPURAM[PPU_MirrorTable[nType][0] * 0x400];
+  PPUBANK[NAME_TABLE1] = &PPURAM[PPU_MirrorTable[nType][1] * 0x400];
+  PPUBANK[NAME_TABLE2] = &PPURAM[PPU_MirrorTable[nType][2] * 0x400];
+  PPUBANK[NAME_TABLE3] = &PPURAM[PPU_MirrorTable[nType][3] * 0x400];
 }
 
 /*===================================================================*/
@@ -548,7 +553,7 @@ void InfoNES_Mirroring( int nType )
 /*===================================================================*/
 void InfoNES_Main()
 {
-/*
+  /*
  *  The main loop of InfoNES
  *
  */
@@ -557,14 +562,14 @@ void InfoNES_Main()
   InfoNES_Init();
 
   // Main loop
-  while ( 1 )
+  while (1)
   {
     /*-------------------------------------------------------------------*/
     /*  To the menu screen                                               */
     /*-------------------------------------------------------------------*/
-    if ( InfoNES_Menu() == -1 )
-      break;  // Quit
-    
+    if (InfoNES_Menu() == -1)
+      break; // Quit
+
     /*-------------------------------------------------------------------*/
     /*  Start a NES emulation                                            */
     /*-------------------------------------------------------------------*/
@@ -580,64 +585,64 @@ void InfoNES_Main()
 /*              InfoNES_Cycle() : The loop of emulation              */
 /*                                                                   */
 /*===================================================================*/
-void InfoNES_Cycle()
+void __not_in_flash_func(InfoNES_Cycle)()
 {
-/*
+  /*
  *  The loop of emulation
  *
  */
 
   // Set the PPU adress to the buffered value
-  if ( ( PPU_R1 & R1_SHOW_SP ) || ( PPU_R1 & R1_SHOW_SCR ) )
-		PPU_Addr = PPU_Temp;
+  if ((PPU_R1 & R1_SHOW_SP) || (PPU_R1 & R1_SHOW_SCR))
+    PPU_Addr = PPU_Temp;
 
   // Emulation loop
   for (;;)
-  {    
+  {
     int nStep;
 
     // Set a flag if a scanning line is a hit in the sprite #0
-    if ( SpriteJustHit == PPU_Scanline &&
-      PPU_ScanTable[ PPU_Scanline ] == SCAN_ON_SCREEN )
+    if (SpriteJustHit == PPU_Scanline &&
+        PPU_ScanTable[PPU_Scanline] == SCAN_ON_SCREEN)
     {
       // # of Steps to execute before sprite #0 hit
-      nStep = SPRRAM[ SPR_X ] * STEP_PER_SCANLINE / NES_DISP_WIDTH;
+      nStep = SPRRAM[SPR_X] * STEP_PER_SCANLINE / NES_DISP_WIDTH;
 
       // Execute instructions
-      K6502_Step( nStep );
+      K6502_Step(nStep);
 
       // Set a sprite hit flag
-      if ( ( PPU_R1 & R1_SHOW_SP ) && ( PPU_R1 & R1_SHOW_SCR ) )
+      if ((PPU_R1 & R1_SHOW_SP) && (PPU_R1 & R1_SHOW_SCR))
         PPU_R2 |= R2_HIT_SP;
 
       // NMI is required if there is necessity
-      if ( ( PPU_R0 & R0_NMI_SP ) && ( PPU_R1 & R1_SHOW_SP ) )
+      if ((PPU_R0 & R0_NMI_SP) && (PPU_R1 & R1_SHOW_SP))
         NMI_REQ;
 
       // Execute instructions
-      K6502_Step( STEP_PER_SCANLINE - nStep );
+      K6502_Step(STEP_PER_SCANLINE - nStep);
     }
     else
     {
       // Execute instructions
-      K6502_Step( STEP_PER_SCANLINE );
+      K6502_Step(STEP_PER_SCANLINE);
     }
 
     // Frame IRQ in H-Sync
     FrameStep += STEP_PER_SCANLINE;
-    if ( FrameStep > STEP_PER_FRAME && FrameIRQ_Enable )
+    if (FrameStep > STEP_PER_FRAME && FrameIRQ_Enable)
     {
       FrameStep %= STEP_PER_FRAME;
       IRQ_REQ;
-      APU_Reg[ 0x4015 ] |= 0x40;
+      APU_Reg[0x4015] |= 0x40;
     }
 
     // A mapper function in H-Sync
     MapperHSync();
-    
+
     // A function in H-Sync
-    if ( InfoNES_HSync() == -1 )
-      return;  // To the menu screen
+    if (InfoNES_HSync() == -1)
+      return; // To the menu screen
 
     // HSYNC Wait
     InfoNES_Wait();
@@ -649,9 +654,9 @@ void InfoNES_Cycle()
 /*              InfoNES_HSync() : A function in H-Sync               */
 /*                                                                   */
 /*===================================================================*/
-int InfoNES_HSync()
+int __not_in_flash_func(InfoNES_HSync)()
 {
-/*
+  /*
  *  A function in H-Sync
  *
  *  Return values
@@ -659,91 +664,96 @@ int InfoNES_HSync()
  *   -1 : Exit an emulation
  */
 
+  if (!APU_Mute)
+    InfoNES_pAPUHsync();
+
   /*-------------------------------------------------------------------*/
   /*  Render a scanline                                                */
   /*-------------------------------------------------------------------*/
-  if ( FrameCnt == 0 &&
-       PPU_ScanTable[ PPU_Scanline ] == SCAN_ON_SCREEN )
+  if (FrameCnt == 0 &&
+      PPU_ScanTable[PPU_Scanline] == SCAN_ON_SCREEN)
   {
+    InfoNES_PreDrawLine(PPU_Scanline);
     InfoNES_DrawLine();
+    InfoNES_PostDrawLine();
   }
 
   /*-------------------------------------------------------------------*/
   /*  Set new scroll values                                            */
   /*-------------------------------------------------------------------*/
-  PPU_Scr_V      = PPU_Scr_V_Next;
+  PPU_Scr_V = PPU_Scr_V_Next;
   PPU_Scr_V_Byte = PPU_Scr_V_Byte_Next;
-  PPU_Scr_V_Bit  = PPU_Scr_V_Bit_Next;
+  PPU_Scr_V_Bit = PPU_Scr_V_Bit_Next;
 
-  PPU_Scr_H      = PPU_Scr_H_Next;
+  PPU_Scr_H = PPU_Scr_H_Next;
   PPU_Scr_H_Byte = PPU_Scr_H_Byte_Next;
-  PPU_Scr_H_Bit  = PPU_Scr_H_Bit_Next;
+  PPU_Scr_H_Bit = PPU_Scr_H_Bit_Next;
 
   /*-------------------------------------------------------------------*/
   /*  Next Scanline                                                    */
   /*-------------------------------------------------------------------*/
-  PPU_Scanline = ( PPU_Scanline == SCAN_VBLANK_END ) ? 0 : PPU_Scanline + 1;
+  PPU_Scanline = (PPU_Scanline == SCAN_VBLANK_END) ? 0 : PPU_Scanline + 1;
 
   /*-------------------------------------------------------------------*/
   /*  Operation in the specific scanning line                          */
   /*-------------------------------------------------------------------*/
-  switch ( PPU_Scanline )
+  switch (PPU_Scanline)
   {
-    case SCAN_TOP_OFF_SCREEN:
-      // Reset a PPU status
-      PPU_R2 = 0;
+  case SCAN_TOP_OFF_SCREEN:
+    // Reset a PPU status
+    PPU_R2 = 0;
 
-      // Set up a character data
-      if ( NesHeader.byVRomSize == 0 && FrameCnt == 0 )
-        InfoNES_SetupChr();
+    // Set up a character data
+    if (NesHeader.byVRomSize == 0 && FrameCnt == 0)
+      InfoNES_SetupChr();
 
-      // Get position of sprite #0
-      InfoNES_GetSprHitY();
-      break;
+    // Get position of sprite #0
+    InfoNES_GetSprHitY();
+    break;
 
-    case SCAN_UNKNOWN_START:
-      if ( FrameCnt == 0 )
-      {
-        // Transfer the contents of work frame on the screen
-        InfoNES_LoadFrame();
-        
+  case SCAN_UNKNOWN_START:
+    if (FrameCnt == 0)
+    {
+      // Transfer the contents of work frame on the screen
+      InfoNES_LoadFrame();
+
 #if 0
         // Switching of the double buffer
         WorkFrameIdx = 1 - WorkFrameIdx;
         WorkFrame = DoubleFrame[ WorkFrameIdx ];
 #endif
-      }
-      break;
+    }
+    break;
 
-    case SCAN_VBLANK_START:
-      // FrameCnt + 1
-      FrameCnt = ( FrameCnt >= FrameSkip ) ? 0 : FrameCnt + 1;
+  case SCAN_VBLANK_START:
+    // FrameCnt + 1
+    FrameCnt = (FrameCnt >= FrameSkip) ? 0 : FrameCnt + 1;
 
-      // Set a V-Blank flag
-      PPU_R2 = R2_IN_VBLANK;
+    // Set a V-Blank flag
+    PPU_R2 = R2_IN_VBLANK;
 
-      // Reset latch flag
-      PPU_Latch_Flag = 0;
+    // Reset latch flag
+    PPU_Latch_Flag = 0;
 
-      // pAPU Sound function in V-Sync
-      if ( !APU_Mute )
-        InfoNES_pAPUVsync();
+    // pAPU Sound function in V-Sync
+    // if (!APU_Mute)
+    InfoNES_pAPUVsync();
 
-      // A mapper function in V-Sync
-      MapperVSync();
+    // A mapper function in V-Sync
+    MapperVSync();
 
-      // Get the condition of the joypad
-      InfoNES_PadState( &PAD1_Latch, &PAD2_Latch, &PAD_System );
-      
-      // NMI on V-Blank
-      if ( PPU_R0 & R0_NMI_VB )
-        NMI_REQ;
+    // Get the condition of the joypad
+    InfoNES_PadState(&PAD1_Latch, &PAD2_Latch, &PAD_System);
 
-      // Exit an emulation if a QUIT button is pushed
-      if ( PAD_PUSH( PAD_System, PAD_SYS_QUIT ) )
-        return -1;  // Exit an emulation      
-      
-      break;
+    // NMI on V-Blank
+    if (PPU_R0 & R0_NMI_VB)
+      NMI_REQ;
+
+    // Exit an emulation if a QUIT button is pushed
+    if (PAD_PUSH(PAD_System, PAD_SYS_QUIT))
+      return -1; // Exit an emulation
+
+    break;
   }
 
   // Successful
@@ -755,9 +765,9 @@ int InfoNES_HSync()
 /*              InfoNES_DrawLine() : Render a scanline               */
 /*                                                                   */
 /*===================================================================*/
-void InfoNES_DrawLine()
+void __not_in_flash_func(InfoNES_DrawLine)()
 {
-/*
+  /*
  *  Render a scanline
  *
  */
@@ -778,39 +788,41 @@ void InfoNES_DrawLine()
   int nIdx;
   int nSprData;
   BYTE bySprCol;
-  BYTE pSprBuf[ NES_DISP_WIDTH + 7 ];
+  BYTE pSprBuf[NES_DISP_WIDTH + 7];
 
   /*-------------------------------------------------------------------*/
   /*  Render Background                                                */
   /*-------------------------------------------------------------------*/
 
   /* MMC5 VROM switch */
-  MapperRenderScreen( 1 );
+  MapperRenderScreen(1);
 
   // Pointer to the render position
-  pPoint = &WorkFrame[ PPU_Scanline * NES_DISP_WIDTH ];
+  //  pPoint = &WorkFrame[PPU_Scanline * NES_DISP_WIDTH];
+  assert(WorkLine);
+  pPoint = WorkLine;
 
   // Clear a scanline if screen is off
-  if ( !( PPU_R1 & R1_SHOW_SCR ) )
+  if (!(PPU_R1 & R1_SHOW_SCR))
   {
-    InfoNES_MemorySet( pPoint, 0, NES_DISP_WIDTH << 1 );
+    InfoNES_MemorySet(pPoint, 0, NES_DISP_WIDTH << 1);
   }
   else
   {
     nNameTable = PPU_NameTableBank;
 
-    nY = PPU_Scr_V_Byte + ( PPU_Scanline >> 3 );
+    nY = PPU_Scr_V_Byte + (PPU_Scanline >> 3);
 
-    nYBit = PPU_Scr_V_Bit + ( PPU_Scanline & 7 );
+    nYBit = PPU_Scr_V_Bit + (PPU_Scanline & 7);
 
-    if ( nYBit > 7 )
+    if (nYBit > 7)
     {
       ++nY;
       nYBit &= 7;
     }
     nYBit <<= 3;
 
-    if ( nY > 29 )
+    if (nY > 29)
     {
       // Next NameTable (An up-down direction)
       nNameTable ^= NAME_TABLE_V_MASK;
@@ -819,24 +831,24 @@ void InfoNES_DrawLine()
 
     nX = PPU_Scr_H_Byte;
 
-    nY4 = ( ( nY & 2 ) << 1 );
+    nY4 = ((nY & 2) << 1);
 
     /*-------------------------------------------------------------------*/
     /*  Rendering of the block of the left end                           */
     /*-------------------------------------------------------------------*/
 
-    pbyNameTable = PPUBANK[ nNameTable ] + nY * 32 + nX;
-    pbyChrData = PPU_BG_Base + ( *pbyNameTable << 6 ) + nYBit;
-    pAttrBase = PPUBANK[ nNameTable ] + 0x3c0 + ( nY / 4 ) * 8;
-    pPalTbl =  &PalTable[ ( ( ( pAttrBase[ nX >> 2 ] >> ( ( nX & 2 ) + nY4 ) ) & 3 ) << 2 ) ];
+    pbyNameTable = PPUBANK[nNameTable] + nY * 32 + nX;
+    pbyChrData = PPU_BG_Base + (*pbyNameTable << 6) + nYBit;
+    pAttrBase = PPUBANK[nNameTable] + 0x3c0 + (nY / 4) * 8;
+    pPalTbl = &PalTable[(((pAttrBase[nX >> 2] >> ((nX & 2) + nY4)) & 3) << 2)];
 
-    for ( nIdx = PPU_Scr_H_Bit; nIdx < 8; ++nIdx )
+    for (nIdx = PPU_Scr_H_Bit; nIdx < 8; ++nIdx)
     {
-      *( pPoint++ ) = pPalTbl[ pbyChrData[ nIdx ] ];
+      *(pPoint++) = pPalTbl[pbyChrData[nIdx]];
     }
 
     // Callback at PPU read/write
-    MapperPPU( PATTBL( pbyChrData ) );
+    MapperPPU(PATTBL(pbyChrData));
 
     ++nX;
     ++pbyNameTable;
@@ -845,23 +857,23 @@ void InfoNES_DrawLine()
     /*  Rendering of the left table                                      */
     /*-------------------------------------------------------------------*/
 
-    for ( ; nX < 32; ++nX )
+    for (; nX < 32; ++nX)
     {
-      pbyChrData = PPU_BG_Base + ( *pbyNameTable << 6 ) + nYBit;
-      pPalTbl = &PalTable[ ( ( ( pAttrBase[ nX >> 2 ] >> ( ( nX & 2 ) + nY4 ) ) & 3 ) << 2 ) ];
+      pbyChrData = PPU_BG_Base + (*pbyNameTable << 6) + nYBit;
+      pPalTbl = &PalTable[(((pAttrBase[nX >> 2] >> ((nX & 2) + nY4)) & 3) << 2)];
 
-      pPoint[ 0 ] = pPalTbl[ pbyChrData[ 0 ] ]; 
-      pPoint[ 1 ] = pPalTbl[ pbyChrData[ 1 ] ];
-      pPoint[ 2 ] = pPalTbl[ pbyChrData[ 2 ] ];
-      pPoint[ 3 ] = pPalTbl[ pbyChrData[ 3 ] ];
-      pPoint[ 4 ] = pPalTbl[ pbyChrData[ 4 ] ];
-      pPoint[ 5 ] = pPalTbl[ pbyChrData[ 5 ] ];
-      pPoint[ 6 ] = pPalTbl[ pbyChrData[ 6 ] ];
-      pPoint[ 7 ] = pPalTbl[ pbyChrData[ 7 ] ];
+      pPoint[0] = pPalTbl[pbyChrData[0]];
+      pPoint[1] = pPalTbl[pbyChrData[1]];
+      pPoint[2] = pPalTbl[pbyChrData[2]];
+      pPoint[3] = pPalTbl[pbyChrData[3]];
+      pPoint[4] = pPalTbl[pbyChrData[4]];
+      pPoint[5] = pPalTbl[pbyChrData[5]];
+      pPoint[6] = pPalTbl[pbyChrData[6]];
+      pPoint[7] = pPalTbl[pbyChrData[7]];
       pPoint += 8;
 
       // Callback at PPU read/write
-      MapperPPU( PATTBL( pbyChrData ) );
+      MapperPPU(PATTBL(pbyChrData));
 
       ++pbyNameTable;
     }
@@ -869,30 +881,30 @@ void InfoNES_DrawLine()
     // Holizontal Mirror
     nNameTable ^= NAME_TABLE_H_MASK;
 
-    pbyNameTable = PPUBANK[ nNameTable ] + nY * 32;
-    pAttrBase = PPUBANK[ nNameTable ] + 0x3c0 + ( nY / 4 ) * 8;
+    pbyNameTable = PPUBANK[nNameTable] + nY * 32;
+    pAttrBase = PPUBANK[nNameTable] + 0x3c0 + (nY / 4) * 8;
 
     /*-------------------------------------------------------------------*/
     /*  Rendering of the right table                                     */
     /*-------------------------------------------------------------------*/
 
-    for ( nX = 0; nX < PPU_Scr_H_Byte; ++nX )
+    for (nX = 0; nX < PPU_Scr_H_Byte; ++nX)
     {
-      pbyChrData = PPU_BG_Base + ( *pbyNameTable << 6 ) + nYBit;
-      pPalTbl = &PalTable[ ( ( ( pAttrBase[ nX >> 2 ] >> ( ( nX & 2 ) + nY4 ) ) & 3 ) << 2 ) ];
+      pbyChrData = PPU_BG_Base + (*pbyNameTable << 6) + nYBit;
+      pPalTbl = &PalTable[(((pAttrBase[nX >> 2] >> ((nX & 2) + nY4)) & 3) << 2)];
 
-      pPoint[ 0 ] = pPalTbl[ pbyChrData[ 0 ] ]; 
-      pPoint[ 1 ] = pPalTbl[ pbyChrData[ 1 ] ];
-      pPoint[ 2 ] = pPalTbl[ pbyChrData[ 2 ] ];
-      pPoint[ 3 ] = pPalTbl[ pbyChrData[ 3 ] ];
-      pPoint[ 4 ] = pPalTbl[ pbyChrData[ 4 ] ];
-      pPoint[ 5 ] = pPalTbl[ pbyChrData[ 5 ] ];
-      pPoint[ 6 ] = pPalTbl[ pbyChrData[ 6 ] ];
-      pPoint[ 7 ] = pPalTbl[ pbyChrData[ 7 ] ];
+      pPoint[0] = pPalTbl[pbyChrData[0]];
+      pPoint[1] = pPalTbl[pbyChrData[1]];
+      pPoint[2] = pPalTbl[pbyChrData[2]];
+      pPoint[3] = pPalTbl[pbyChrData[3]];
+      pPoint[4] = pPalTbl[pbyChrData[4]];
+      pPoint[5] = pPalTbl[pbyChrData[5]];
+      pPoint[6] = pPalTbl[pbyChrData[6]];
+      pPoint[7] = pPalTbl[pbyChrData[7]];
       pPoint += 8;
 
       // Callback at PPU read/write
-      MapperPPU( PATTBL( pbyChrData ) );
+      MapperPPU(PATTBL(pbyChrData));
 
       ++pbyNameTable;
     }
@@ -901,38 +913,40 @@ void InfoNES_DrawLine()
     /*  Rendering of the block of the right end                          */
     /*-------------------------------------------------------------------*/
 
-    pbyChrData = PPU_BG_Base + ( *pbyNameTable << 6 ) + nYBit;
-    pPalTbl = &PalTable[ ( ( ( pAttrBase[ nX >> 2 ] >> ( ( nX & 2 ) + nY4 ) ) & 3 ) << 2 ) ];
-    for ( nIdx = 0; nIdx < PPU_Scr_H_Bit; ++nIdx )
+    pbyChrData = PPU_BG_Base + (*pbyNameTable << 6) + nYBit;
+    pPalTbl = &PalTable[(((pAttrBase[nX >> 2] >> ((nX & 2) + nY4)) & 3) << 2)];
+    for (nIdx = 0; nIdx < PPU_Scr_H_Bit; ++nIdx)
     {
-      pPoint[ nIdx ] = pPalTbl[ pbyChrData[ nIdx ] ];
+      pPoint[nIdx] = pPalTbl[pbyChrData[nIdx]];
     }
 
     // Callback at PPU read/write
-    MapperPPU( PATTBL( pbyChrData ) );
+    MapperPPU(PATTBL(pbyChrData));
 
     /*-------------------------------------------------------------------*/
     /*  Backgroud Clipping                                               */
     /*-------------------------------------------------------------------*/
-    if ( !( PPU_R1 & R1_CLIP_BG ) )
+    if (!(PPU_R1 & R1_CLIP_BG))
     {
       WORD *pPointTop;
 
-      pPointTop = &WorkFrame[ PPU_Scanline * NES_DISP_WIDTH ];
-      InfoNES_MemorySet( pPointTop, 0, 8 << 1 );
+      // pPointTop = &WorkFrame[PPU_Scanline * NES_DISP_WIDTH];
+      pPoint = WorkLine;
+      InfoNES_MemorySet(pPointTop, 0, 8 << 1);
     }
 
     /*-------------------------------------------------------------------*/
     /*  Clear a scanline if up and down clipping flag is set             */
     /*-------------------------------------------------------------------*/
-    if ( PPU_UpDown_Clip && 
-       ( SCAN_ON_SCREEN_START > PPU_Scanline || PPU_Scanline > SCAN_BOTTOM_OFF_SCREEN_START ) )
+    if (PPU_UpDown_Clip &&
+        (SCAN_ON_SCREEN_START > PPU_Scanline || PPU_Scanline > SCAN_BOTTOM_OFF_SCREEN_START))
     {
       WORD *pPointTop;
 
-      pPointTop = &WorkFrame[ PPU_Scanline * NES_DISP_WIDTH ];
-      InfoNES_MemorySet( pPointTop, 0, NES_DISP_WIDTH << 1 );
-    }  
+      // pPointTop = &WorkFrame[PPU_Scanline * NES_DISP_WIDTH];
+      pPoint = WorkLine;
+      InfoNES_MemorySet(pPointTop, 0, NES_DISP_WIDTH << 1);
+    }
   }
 
   /*-------------------------------------------------------------------*/
@@ -940,123 +954,124 @@ void InfoNES_DrawLine()
   /*-------------------------------------------------------------------*/
 
   /* MMC5 VROM switch */
-  MapperRenderScreen( 0 );
+  MapperRenderScreen(0);
 
-  if ( PPU_R1 & R1_SHOW_SP )
+  if (PPU_R1 & R1_SHOW_SP)
   {
     // Reset Scanline Sprite Count
     PPU_R2 &= ~R2_MAX_SP;
 
     // Reset sprite buffer
-    InfoNES_MemorySet( pSprBuf, 0, sizeof pSprBuf );
+    InfoNES_MemorySet(pSprBuf, 0, sizeof pSprBuf);
 
     // Render a sprite to the sprite buffer
     nSprCnt = 0;
-    for ( pSPRRAM = SPRRAM + ( 63 << 2 ); pSPRRAM >= SPRRAM; pSPRRAM -= 4 )
+    for (pSPRRAM = SPRRAM + (63 << 2); pSPRRAM >= SPRRAM; pSPRRAM -= 4)
     {
-      nY = pSPRRAM[ SPR_Y ] + 1;
-      if ( nY > PPU_Scanline || nY + PPU_SP_Height <= PPU_Scanline )
-        continue;  // Next sprite
+      nY = pSPRRAM[SPR_Y] + 1;
+      if (nY > PPU_Scanline || nY + PPU_SP_Height <= PPU_Scanline)
+        continue; // Next sprite
 
-     /*-------------------------------------------------------------------*/
-     /*  A sprite in scanning line                                        */
-     /*-------------------------------------------------------------------*/
+      /*-------------------------------------------------------------------*/
+      /*  A sprite in scanning line                                        */
+      /*-------------------------------------------------------------------*/
 
       // Holizontal Sprite Count +1
       ++nSprCnt;
-      
-      nAttr = pSPRRAM[ SPR_ATTR ];
-      nYBit = PPU_Scanline - nY;
-      nYBit = ( nAttr & SPR_ATTR_V_FLIP ) ? ( PPU_SP_Height - nYBit - 1 ) << 3 : nYBit << 3;
 
-      if ( PPU_R0 & R0_SP_SIZE )
+      nAttr = pSPRRAM[SPR_ATTR];
+      nYBit = PPU_Scanline - nY;
+      nYBit = (nAttr & SPR_ATTR_V_FLIP) ? (PPU_SP_Height - nYBit - 1) << 3 : nYBit << 3;
+
+      if (PPU_R0 & R0_SP_SIZE)
       {
         // Sprite size 8x16
-        if ( pSPRRAM[ SPR_CHR ] & 1 )
+        if (pSPRRAM[SPR_CHR] & 1)
         {
-          pbyChrData = ChrBuf + 256 * 64 + ( ( pSPRRAM[ SPR_CHR ] & 0xfe ) << 6 ) + nYBit;
+          pbyChrData = ChrBuf + 256 * 64 + ((pSPRRAM[SPR_CHR] & 0xfe) << 6) + nYBit;
         }
         else
         {
-          pbyChrData = ChrBuf + ( ( pSPRRAM[ SPR_CHR ] & 0xfe ) << 6 ) + nYBit;
+          pbyChrData = ChrBuf + ((pSPRRAM[SPR_CHR] & 0xfe) << 6) + nYBit;
         }
       }
       else
       {
         // Sprite size 8x8
-        pbyChrData = PPU_SP_Base + ( pSPRRAM[ SPR_CHR ] << 6 ) + nYBit;
+        pbyChrData = PPU_SP_Base + (pSPRRAM[SPR_CHR] << 6) + nYBit;
       }
 
       nAttr ^= SPR_ATTR_PRI;
-      bySprCol = ( nAttr & ( SPR_ATTR_COLOR | SPR_ATTR_PRI ) ) << 2;
-      nX = pSPRRAM[ SPR_X ];
+      bySprCol = (nAttr & (SPR_ATTR_COLOR | SPR_ATTR_PRI)) << 2;
+      nX = pSPRRAM[SPR_X];
 
-      if ( nAttr & SPR_ATTR_H_FLIP )
+      if (nAttr & SPR_ATTR_H_FLIP)
       {
         // Horizontal flip
-        if ( pbyChrData[ 7 ] )
-          pSprBuf[ nX ]     = bySprCol | pbyChrData[ 7 ];
-        if ( pbyChrData[ 6 ] )
-          pSprBuf[ nX + 1 ] = bySprCol | pbyChrData[ 6 ];
-        if ( pbyChrData[ 5 ] )
-          pSprBuf[ nX + 2 ] = bySprCol | pbyChrData[ 5 ];
-        if ( pbyChrData[ 4 ] )
-          pSprBuf[ nX + 3 ] = bySprCol | pbyChrData[ 4 ];
-        if ( pbyChrData[ 3 ] )
-          pSprBuf[ nX + 4 ] = bySprCol | pbyChrData[ 3 ];
-        if ( pbyChrData[ 2 ] )
-          pSprBuf[ nX + 5 ] = bySprCol | pbyChrData[ 2 ];
-        if ( pbyChrData[ 1 ] )
-          pSprBuf[ nX + 6 ] = bySprCol | pbyChrData[ 1 ];
-        if ( pbyChrData[ 0 ] )
-          pSprBuf[ nX + 7 ] = bySprCol | pbyChrData[ 0 ];
+        if (pbyChrData[7])
+          pSprBuf[nX] = bySprCol | pbyChrData[7];
+        if (pbyChrData[6])
+          pSprBuf[nX + 1] = bySprCol | pbyChrData[6];
+        if (pbyChrData[5])
+          pSprBuf[nX + 2] = bySprCol | pbyChrData[5];
+        if (pbyChrData[4])
+          pSprBuf[nX + 3] = bySprCol | pbyChrData[4];
+        if (pbyChrData[3])
+          pSprBuf[nX + 4] = bySprCol | pbyChrData[3];
+        if (pbyChrData[2])
+          pSprBuf[nX + 5] = bySprCol | pbyChrData[2];
+        if (pbyChrData[1])
+          pSprBuf[nX + 6] = bySprCol | pbyChrData[1];
+        if (pbyChrData[0])
+          pSprBuf[nX + 7] = bySprCol | pbyChrData[0];
       }
       else
       {
         // Non flip
-        if ( pbyChrData[ 0 ] )
-          pSprBuf[ nX ]     = bySprCol | pbyChrData[ 0 ];
-        if ( pbyChrData[ 1 ] )
-          pSprBuf[ nX + 1 ] = bySprCol | pbyChrData[ 1 ];
-        if ( pbyChrData[ 2 ] )
-          pSprBuf[ nX + 2 ] = bySprCol | pbyChrData[ 2 ];
-        if ( pbyChrData[ 3 ] )
-          pSprBuf[ nX + 3 ] = bySprCol | pbyChrData[ 3 ];
-        if ( pbyChrData[ 4 ] )
-          pSprBuf[ nX + 4 ] = bySprCol | pbyChrData[ 4 ];
-        if ( pbyChrData[ 5 ] )
-          pSprBuf[ nX + 5 ] = bySprCol | pbyChrData[ 5 ];
-        if ( pbyChrData[ 6 ] )
-          pSprBuf[ nX + 6 ] = bySprCol | pbyChrData[ 6 ];
-        if ( pbyChrData[ 7 ] )
-          pSprBuf[ nX + 7 ] = bySprCol | pbyChrData[ 7 ];
+        if (pbyChrData[0])
+          pSprBuf[nX] = bySprCol | pbyChrData[0];
+        if (pbyChrData[1])
+          pSprBuf[nX + 1] = bySprCol | pbyChrData[1];
+        if (pbyChrData[2])
+          pSprBuf[nX + 2] = bySprCol | pbyChrData[2];
+        if (pbyChrData[3])
+          pSprBuf[nX + 3] = bySprCol | pbyChrData[3];
+        if (pbyChrData[4])
+          pSprBuf[nX + 4] = bySprCol | pbyChrData[4];
+        if (pbyChrData[5])
+          pSprBuf[nX + 5] = bySprCol | pbyChrData[5];
+        if (pbyChrData[6])
+          pSprBuf[nX + 6] = bySprCol | pbyChrData[6];
+        if (pbyChrData[7])
+          pSprBuf[nX + 7] = bySprCol | pbyChrData[7];
       }
     }
 
     // Rendering sprite
-    pPoint -= ( NES_DISP_WIDTH - PPU_Scr_H_Bit );
-    for ( nX = 0; nX < NES_DISP_WIDTH; ++nX )
+    pPoint -= (NES_DISP_WIDTH - PPU_Scr_H_Bit);
+    for (nX = 0; nX < NES_DISP_WIDTH; ++nX)
     {
-      nSprData = pSprBuf[ nX ];
-      if ( nSprData  && ( nSprData & 0x80 || pPoint[ nX ] & 0x8000 ) )
+      nSprData = pSprBuf[nX];
+      if (nSprData && (nSprData & 0x80 || pPoint[nX] & 0x8000))
       {
-        pPoint[ nX ] = PalTable[ ( nSprData & 0xf ) + 0x10 ];
+        pPoint[nX] = PalTable[(nSprData & 0xf) + 0x10];
       }
     }
 
     /*-------------------------------------------------------------------*/
     /*  Sprite Clipping                                                  */
     /*-------------------------------------------------------------------*/
-    if ( !( PPU_R1 & R1_CLIP_SP ) )
+    if (!(PPU_R1 & R1_CLIP_SP))
     {
       WORD *pPointTop;
 
-      pPointTop = &WorkFrame[ PPU_Scanline * NES_DISP_WIDTH ];
-      InfoNES_MemorySet( pPointTop, 0, 8 << 1 );
+      // pPointTop = &WorkFrame[PPU_Scanline * NES_DISP_WIDTH];
+      pPoint = WorkLine;
+      InfoNES_MemorySet(pPointTop, 0, 8 << 1);
     }
 
-    if ( nSprCnt >= 8 )
-      PPU_R2 |= R2_MAX_SP;  // Set a flag of maximum sprites on scanline
+    if (nSprCnt >= 8)
+      PPU_R2 |= R2_MAX_SP; // Set a flag of maximum sprites on scanline
   }
 }
 
@@ -1067,7 +1082,7 @@ void InfoNES_DrawLine()
 /*===================================================================*/
 void InfoNES_GetSprHitY()
 {
-/*
+  /*
  * Get a position of scanline hits sprite #0
  *
  */
@@ -1076,10 +1091,10 @@ void InfoNES_GetSprHitY()
   DWORD *pdwChrData;
   int nOff;
 
-  if ( SPRRAM[ SPR_ATTR ] & SPR_ATTR_V_FLIP )
+  if (SPRRAM[SPR_ATTR] & SPR_ATTR_V_FLIP)
   {
     // Vertical flip
-    nYBit = ( PPU_SP_Height - 1 ) << 3;
+    nYBit = (PPU_SP_Height - 1) << 3;
     nOff = -2;
   }
   else
@@ -1089,39 +1104,41 @@ void InfoNES_GetSprHitY()
     nOff = 2;
   }
 
-  if ( PPU_R0 & R0_SP_SIZE )
+  if (PPU_R0 & R0_SP_SIZE)
   {
     // Sprite size 8x16
-    if ( SPRRAM[ SPR_CHR ] & 1 )
+    if (SPRRAM[SPR_CHR] & 1)
     {
-      pdwChrData = (DWORD *)( ChrBuf + 256 * 64 + ( ( SPRRAM[ SPR_CHR ] & 0xfe ) << 6 ) + nYBit );
+      pdwChrData = (DWORD *)(ChrBuf + 256 * 64 + ((SPRRAM[SPR_CHR] & 0xfe) << 6) + nYBit);
     }
     else
     {
-      pdwChrData = (DWORD * )( ChrBuf + ( ( SPRRAM[ SPR_CHR ] & 0xfe ) << 6 ) + nYBit );
-    } 
+      pdwChrData = (DWORD *)(ChrBuf + ((SPRRAM[SPR_CHR] & 0xfe) << 6) + nYBit);
+    }
   }
   else
   {
     // Sprite size 8x8
-    pdwChrData = (DWORD *)( PPU_SP_Base + ( SPRRAM[ SPR_CHR ] << 6 ) + nYBit );
+    pdwChrData = (DWORD *)(PPU_SP_Base + (SPRRAM[SPR_CHR] << 6) + nYBit);
   }
 
-  if ( ( SPRRAM[ SPR_Y ] + 1 <= SCAN_UNKNOWN_START ) && ( SPRRAM[SPR_Y] > 0 ) )
-	{
-		for ( int nLine = 0; nLine < PPU_SP_Height; nLine++ )
-		{
-			if ( pdwChrData[ 0 ] | pdwChrData[ 1 ] )
-			{
+  if ((SPRRAM[SPR_Y] + 1 <= SCAN_UNKNOWN_START) && (SPRRAM[SPR_Y] > 0))
+  {
+    for (int nLine = 0; nLine < PPU_SP_Height; nLine++)
+    {
+      if (pdwChrData[0] | pdwChrData[1])
+      {
         // Scanline hits sprite #0
-				SpriteJustHit = SPRRAM[SPR_Y] + 1 + nLine;
-				nLine = SCAN_VBLANK_END;
-			}
-			pdwChrData += nOff;
-		}
-  } else {
+        SpriteJustHit = SPRRAM[SPR_Y] + 1 + nLine;
+        nLine = SCAN_VBLANK_END;
+      }
+      pdwChrData += nOff;
+    }
+  }
+  else
+  {
     // Scanline didn't hit sprite #0
-		SpriteJustHit = SCAN_UNKNOWN_START + 1;
+    SpriteJustHit = SCAN_UNKNOWN_START + 1;
   }
 }
 
@@ -1130,9 +1147,9 @@ void InfoNES_GetSprHitY()
 /*            InfoNES_SetupChr() : Develop character data            */
 /*                                                                   */
 /*===================================================================*/
-void InfoNES_SetupChr()
+void __not_in_flash_func(InfoNES_SetupChr)()
 {
-/*
+  /*
  *  Develop character data
  *
  */
@@ -1143,13 +1160,13 @@ void InfoNES_SetupChr()
   int nIdx;
   int nY;
   int nOff;
-  static BYTE *pbyPrevBank[ 8 ];
+  static BYTE *pbyPrevBank[8];
   int nBank;
 
-  for ( nBank = 0; nBank < 8; ++nBank )
+  for (nBank = 0; nBank < 8; ++nBank)
   {
-    if ( pbyPrevBank[ nBank ] == PPUBANK[ nBank ] && !( ( ChrBufUpdate >> nBank ) & 1 ) )
-      continue;  // Next bank
+    if (pbyPrevBank[nBank] == PPUBANK[nBank] && !((ChrBufUpdate >> nBank) & 1))
+      continue; // Next bank
 
     /*-------------------------------------------------------------------*/
     /*  An address is different from the last time                       */
@@ -1157,31 +1174,31 @@ void InfoNES_SetupChr()
     /*  An update flag is being set                                      */
     /*-------------------------------------------------------------------*/
 
-    for ( nIdx = 0; nIdx < 64; ++nIdx )
+    for (nIdx = 0; nIdx < 64; ++nIdx)
     {
-      nOff = ( nBank << 12 ) + ( nIdx << 6 );
+      nOff = (nBank << 12) + (nIdx << 6);
 
-      for ( nY = 0; nY < 8; ++nY )
+      for (nY = 0; nY < 8; ++nY)
       {
-        pbyBGData = PPUBANK[ nBank ] + ( nIdx << 4 ) + nY;
+        pbyBGData = PPUBANK[nBank] + (nIdx << 4) + nY;
 
-        byData1 = ( ( pbyBGData[ 0 ] >> 1 ) & 0x55 ) | ( pbyBGData[ 8 ] & 0xAA );
-        byData2 = ( pbyBGData[ 0 ] & 0x55 ) | ( ( pbyBGData[ 8 ] << 1 ) & 0xAA );
+        byData1 = ((pbyBGData[0] >> 1) & 0x55) | (pbyBGData[8] & 0xAA);
+        byData2 = (pbyBGData[0] & 0x55) | ((pbyBGData[8] << 1) & 0xAA);
 
-        ChrBuf[ nOff ]     = ( byData1 >> 6 ) & 3;
-        ChrBuf[ nOff + 1 ] = ( byData2 >> 6 ) & 3;
-        ChrBuf[ nOff + 2 ] = ( byData1 >> 4 ) & 3;
-        ChrBuf[ nOff + 3 ] = ( byData2 >> 4 ) & 3;
-        ChrBuf[ nOff + 4 ] = ( byData1 >> 2 ) & 3;
-        ChrBuf[ nOff + 5 ] = ( byData2 >> 2 ) & 3;
-        ChrBuf[ nOff + 6 ] = byData1 & 3;
-        ChrBuf[ nOff + 7 ] = byData2 & 3;
+        ChrBuf[nOff] = (byData1 >> 6) & 3;
+        ChrBuf[nOff + 1] = (byData2 >> 6) & 3;
+        ChrBuf[nOff + 2] = (byData1 >> 4) & 3;
+        ChrBuf[nOff + 3] = (byData2 >> 4) & 3;
+        ChrBuf[nOff + 4] = (byData1 >> 2) & 3;
+        ChrBuf[nOff + 5] = (byData2 >> 2) & 3;
+        ChrBuf[nOff + 6] = byData1 & 3;
+        ChrBuf[nOff + 7] = byData2 & 3;
 
         nOff += 8;
       }
     }
     // Keep this address
-    pbyPrevBank[ nBank ] = PPUBANK[ nBank ];
+    pbyPrevBank[nBank] = PPUBANK[nBank];
   }
 
   // Reset update flag
