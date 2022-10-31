@@ -63,11 +63,53 @@ enum
 /*  NES resources                                                    */
 /*-------------------------------------------------------------------*/
 
+#pragma region buffers
 /* RAM */
 BYTE RAM[RAM_SIZE];
-
+// Share with romselect.cpp
+void *InfoNes_GetRAM(size_t *size)
+{
+  printf("Acquired RAM Buffer from emulator: %d bytes\n", RAM_SIZE);
+  *size = RAM_SIZE;
+  return SRAM;
+}
 /* SRAM */
 BYTE SRAM[SRAM_SIZE];
+
+/* Character Buffer */
+BYTE ChrBuf[CHRBUF_SIZE];
+
+// Share with romselect.cpp
+void *InfoNes_GetChrBuf(size_t *size)
+{
+  printf("Acquired ChrBuf Buffer from emulator: %d bytes\n", CHRBUF_SIZE);
+  *size = CHRBUF_SIZE;
+  return ChrBuf;
+}
+/* PPU RAM */
+BYTE PPURAM[PPURAM_SIZE];
+// Share with romselect.cpp
+void *InfoNes_GetPPURAM(size_t *size)
+{
+  printf("Acquired PPURAM Buffer from emulator: %d bytes\n", PPURAM_SIZE);
+  *size = PPURAM_SIZE;
+  return PPURAM;
+}
+/* PPU BANK ( 1Kb * 16 ) */
+BYTE *PPUBANK[16];
+/* Sprite RAM */
+BYTE SPRRAM[SPRRAM_SIZE];
+// Share with romselect.cpp
+void *InfoNes_GetSPRRAM(size_t *size)
+{
+  printf("Acquired SPRRAM Buffer from emulator: %d bytes\n", SPRRAM_SIZE);
+  *size = SPRRAM_SIZE;
+  return SPRRAM;
+}
+/* Scanline Table */
+BYTE PPU_ScanTable[263];
+#pragma endregion
+
 bool SRAMwritten = false;
 
 /* ROM */
@@ -87,18 +129,10 @@ BYTE *ROMBANK[4];
 /*  PPU resources                                                    */
 /*-------------------------------------------------------------------*/
 
-/* PPU RAM */
-BYTE PPURAM[PPURAM_SIZE];
-
 /* VROM */
 BYTE *VROM;
 
-/* PPU BANK ( 1Kb * 16 ) */
-BYTE *PPUBANK[16];
-
-/* Sprite RAM */
-BYTE SPRRAM[SPRRAM_SIZE];
-
+// BYTE *SPRRAM;
 /* PPU Register */
 BYTE PPU_R0;
 BYTE PPU_R1;
@@ -107,20 +141,20 @@ BYTE PPU_R3;
 BYTE PPU_R7;
 
 /* Vertical scroll value */
-//BYTE PPU_Scr_V;
-//BYTE PPU_Scr_V_Next;
-//BYTE PPU_Scr_V_Byte;
-//BYTE PPU_Scr_V_Byte_Next;
-//BYTE PPU_Scr_V_Bit;
-//BYTE PPU_Scr_V_Bit_Next;
+// BYTE PPU_Scr_V;
+// BYTE PPU_Scr_V_Next;
+// BYTE PPU_Scr_V_Byte;
+// BYTE PPU_Scr_V_Byte_Next;
+// BYTE PPU_Scr_V_Bit;
+// BYTE PPU_Scr_V_Bit_Next;
 
 /* Horizontal scroll value */
-//BYTE PPU_Scr_H;
-//BYTE PPU_Scr_H_Next;
+// BYTE PPU_Scr_H;
+// BYTE PPU_Scr_H_Next;
 BYTE PPU_Scr_H_Byte;
-//BYTE PPU_Scr_H_Byte_Next;
+// BYTE PPU_Scr_H_Byte_Next;
 BYTE PPU_Scr_H_Bit;
-//BYTE PPU_Scr_H_Bit_Next;
+// BYTE PPU_Scr_H_Bit_Next;
 
 /* PPU Address */
 WORD PPU_Addr;
@@ -133,9 +167,6 @@ WORD PPU_Increment;
 
 /* Current Scanline */
 WORD PPU_Scanline;
-
-/* Scanline Table */
-BYTE PPU_ScanTable[263];
 
 /* Name Table Bank */
 BYTE PPU_NameTableBank;
@@ -179,7 +210,7 @@ WORD DoubleFrame[ 2 ][ NES_DISP_WIDTH * NES_DISP_HEIGHT ];
 WORD *WorkFrame;
 WORD WorkFrameIdx;
 #else
-//WORD WorkFrame[ NES_DISP_WIDTH * NES_DISP_HEIGHT ];
+// WORD WorkFrame[ NES_DISP_WIDTH * NES_DISP_HEIGHT ];
 WORD *WorkLine = nullptr;
 void __not_in_flash_func(InfoNES_SetLineBuffer)(WORD *p, WORD size)
 {
@@ -187,9 +218,6 @@ void __not_in_flash_func(InfoNES_SetLineBuffer)(WORD *p, WORD size)
   WorkLine = p;
 }
 #endif
-
-/* Character Buffer */
-BYTE ChrBuf[256 * 2 * 8 * 8];
 
 /* Update flag for ChrBuf */
 BYTE ChrBufUpdate;
@@ -275,11 +303,11 @@ BYTE ROM_FourScr;
 void InfoNES_Init()
 {
   /*
- *  Initialize InfoNES
- *
- *  Remarks
- *    Initialize K6502 and Scanline Table.
- */
+   *  Initialize InfoNES
+   *
+   *  Remarks
+   *    Initialize K6502 and Scanline Table.
+   */
   int nIdx;
 
   // Initialize 6502
@@ -309,11 +337,11 @@ void InfoNES_Init()
 void InfoNES_Fin()
 {
   /*
- *  Completion treatment
- *
- *  Remarks
- *    Release resources
- */
+   *  Completion treatment
+   *
+   *  Remarks
+   *    Release resources
+   */
   // Finalize pAPU
   InfoNES_pAPUDone();
 
@@ -329,20 +357,20 @@ void InfoNES_Fin()
 int InfoNES_Load(const char *pszFileName)
 {
   /*
- *  Load a cassette
- *
- *  Parameters
- *    const char *pszFileName            (Read)
- *      File name of ROM image
- *
- *  Return values
- *     0 : It was finished normally.
- *    -1 : An error occurred.
- *
- *  Remarks
- *    Read a ROM image in the memory. 
- *    Reset InfoNES.
- */
+   *  Load a cassette
+   *
+   *  Parameters
+   *    const char *pszFileName            (Read)
+   *      File name of ROM image
+   *
+   *  Return values
+   *     0 : It was finished normally.
+   *    -1 : An error occurred.
+   *
+   *  Remarks
+   *    Read a ROM image in the memory.
+   *    Reset InfoNES.
+   */
 
   // Release a memory for ROM
   InfoNES_ReleaseRom();
@@ -367,16 +395,16 @@ int InfoNES_Load(const char *pszFileName)
 int InfoNES_Reset()
 {
   /*
- *  Reset InfoNES
- *
- *  Return values
- *     0 : Normally
- *    -1 : Non support mapper
- *
- *  Remarks
- *    Initialize Resources, PPU and Mapper.
- *    Reset CPU.
- */
+   *  Reset InfoNES
+   *
+   *  Return values
+   *     0 : Normally
+   *    -1 : Non support mapper
+   *
+   *  Remarks
+   *    Initialize Resources, PPU and Mapper.
+   *    Reset CPU.
+   */
 
   int nIdx;
 
@@ -408,7 +436,7 @@ int InfoNES_Reset()
   /*-------------------------------------------------------------------*/
 
   // Clear RAM
-  InfoNES_MemorySet(RAM, 0, sizeof RAM);
+  InfoNES_MemorySet(RAM, 0, RAM_SIZE);
 
   // Reset frame skip and frame count
   FrameSkip = 0;
@@ -448,7 +476,7 @@ int InfoNES_Reset()
   /*-------------------------------------------------------------------*/
   /*  Initialize Mapper                                                */
   /*-------------------------------------------------------------------*/
-
+  InfoNES_MessageBox("Using Mapper #%d\n", MapperNo);
   // Get Mapper Table Index
   for (nIdx = 0; MapperTable[nIdx].nMapperNo != -1; ++nIdx)
   {
@@ -459,7 +487,7 @@ int InfoNES_Reset()
   if (MapperTable[nIdx].nMapperNo == -1)
   {
     // Non support mapper
-    InfoNES_MessageBox("Mapper #%d is unsupported.\n", MapperNo);
+    InfoNES_Error("Mapper #%d is unsupported.", MapperNo);
     return -1;
   }
 
@@ -484,14 +512,14 @@ int InfoNES_Reset()
 void InfoNES_SetupPPU()
 {
   /*
- *  Initialize PPU
- *
- */
+   *  Initialize PPU
+   *
+   */
   int nPage;
 
   // Clear PPU and Sprite Memory
-  InfoNES_MemorySet(PPURAM, 0, sizeof PPURAM);
-  InfoNES_MemorySet(SPRRAM, 0, sizeof SPRRAM);
+  InfoNES_MemorySet(PPURAM, 0, PPURAM_SIZE);
+  InfoNES_MemorySet(SPRRAM, 0, SPRRAM_SIZE);
 
   // Reset PPU Register
   PPU_R0 = PPU_R1 = PPU_R2 = PPU_R3 = PPU_R7 = 0;
@@ -547,18 +575,18 @@ void InfoNES_SetupPPU()
 void InfoNES_Mirroring(int nType)
 {
   /*
- *  Set up a Mirroring of Name Table
- *
- *  Parameters
- *    int nType          (Read)
- *      Mirroring Type
- *        0 : Horizontal
- *        1 : Vertical
- *        2 : One Screen 0x2400
- *        3 : One Screen 0x2000
- *        4 : Four Screen
- *        5 : Special for Mapper #233
- */
+   *  Set up a Mirroring of Name Table
+   *
+   *  Parameters
+   *    int nType          (Read)
+   *      Mirroring Type
+   *        0 : Horizontal
+   *        1 : Vertical
+   *        2 : One Screen 0x2400
+   *        3 : One Screen 0x2000
+   *        4 : Four Screen
+   *        5 : Special for Mapper #233
+   */
 
   PPUBANK[NAME_TABLE0] = &PPURAM[PPU_MirrorTable[nType][0] * 0x400];
   PPUBANK[NAME_TABLE1] = &PPURAM[PPU_MirrorTable[nType][1] * 0x400];
@@ -574,27 +602,28 @@ void InfoNES_Mirroring(int nType)
 void InfoNES_Main()
 {
   /*
- *  The main loop of InfoNES
- *
- */
+   *  The main loop of InfoNES
+   *
+   */
 
   // Initialize InfoNES
   InfoNES_Init();
 
   // Main loop
-  while (1)
+  // while (1)
+  // {
+  /*-------------------------------------------------------------------*/
+  /*  To the menu screen                                               */
+  /*-------------------------------------------------------------------*/
+  if (InfoNES_Menu() == 0)
   {
-    /*-------------------------------------------------------------------*/
-    /*  To the menu screen                                               */
-    /*-------------------------------------------------------------------*/
-    if (InfoNES_Menu() == -1)
-      break; // Quit
-
+    
     /*-------------------------------------------------------------------*/
     /*  Start a NES emulation                                            */
     /*-------------------------------------------------------------------*/
     InfoNES_Cycle();
   }
+  //}
 
   // Completion treatment
   InfoNES_Fin();
@@ -608,9 +637,9 @@ void InfoNES_Main()
 void __not_in_flash_func(InfoNES_Cycle)()
 {
   /*
- *  The loop of emulation
- *
- */
+   *  The loop of emulation
+   *
+   */
 
   // Set the PPU adress to the buffered value
   // if ((PPU_R1 & R1_SHOW_SP) || (PPU_R1 & R1_SHOW_SCR))
@@ -679,12 +708,12 @@ void __not_in_flash_func(InfoNES_Cycle)()
 int __not_in_flash_func(InfoNES_HSync)()
 {
   /*
- *  A function in H-Sync
- *
- *  Return values
- *    0 : Normally
- *   -1 : Exit an emulation
- */
+   *  A function in H-Sync
+   *
+   *  Return values
+   *    0 : Normally
+   *   -1 : Exit an emulation
+   */
 
   InfoNES_pAPUHsync(!APU_Mute);
   util::WorkMeterMark(MARKER_SOUND);
@@ -718,12 +747,12 @@ int __not_in_flash_func(InfoNES_HSync)()
   /*-------------------------------------------------------------------*/
 
   //  PPU_Scr_V = PPU_Scr_V_Next;
-  //PPU_Scr_V_Byte = PPU_Scr_V_Byte_Next;
-  //PPU_Scr_V_Bit = PPU_Scr_V_Bit_Next;
+  // PPU_Scr_V_Byte = PPU_Scr_V_Byte_Next;
+  // PPU_Scr_V_Bit = PPU_Scr_V_Bit_Next;
 
   //  PPU_Scr_H = PPU_Scr_H_Next;
-  //PPU_Scr_H_Byte = PPU_Scr_H_Byte_Next;
-  //PPU_Scr_H_Bit = PPU_Scr_H_Bit_Next;
+  // PPU_Scr_H_Byte = PPU_Scr_H_Byte_Next;
+  // PPU_Scr_H_Bit = PPU_Scr_H_Bit_Next;
 
   if ((PPU_R1 & R1_SHOW_SP) || (PPU_R1 & R1_SHOW_SCR))
   {
@@ -872,9 +901,9 @@ namespace
 void __not_in_flash_func(InfoNES_DrawLine)()
 {
   /*
- *  Render a scanline
- *
- */
+   *  Render a scanline
+   *
+   */
 
   int nX;
   int nY;
@@ -1023,7 +1052,8 @@ void __not_in_flash_func(InfoNES_DrawLine)()
       const auto pat0 = ((pl0 & 0x55) << 1) | ((pl1 & 0x55) << 2);
       const auto pat1 = ((pl0 & 0xaa) << 0) | ((pl1 & 0xaa) << 1);
 
-      auto readPal = [&](int ofs) {
+      auto readPal = [&](int ofs)
+      {
         return *reinterpret_cast<const WORD *>(palAddr + ofs);
       };
       pPoint[0] = readPal((pat1 >> 6) & 6);
@@ -1394,10 +1424,10 @@ void __not_in_flash_func(InfoNES_DrawLine)()
       const auto *pal = &PalTable[0x10];
       const auto *spr = pSprBuf;
       const auto *sprEnd = spr + NES_DISP_WIDTH;
-      //for (nX = 0; nX < NES_DISP_WIDTH; ++nX)
+      // for (nX = 0; nX < NES_DISP_WIDTH; ++nX)
       while (spr != sprEnd)
       {
-        //nSprData = pSprBuf[nX];
+        // nSprData = pSprBuf[nX];
         auto proc = [=](int i) __attribute__((always_inline))
         {
           int v = spr[i];
@@ -1450,9 +1480,9 @@ void __not_in_flash_func(InfoNES_DrawLine)()
 void __not_in_flash_func(InfoNES_GetSprHitY)()
 {
   /*
- * Get a position of scanline hits sprite #0
- *
- */
+   * Get a position of scanline hits sprite #0
+   *
+   */
 
 #if 0
   int nYBit;
@@ -1577,9 +1607,9 @@ void __not_in_flash_func(InfoNES_GetSprHitY)()
 void __not_in_flash_func(InfoNES_SetupChr)()
 {
   /*
- *  Develop character data
- *
- */
+   *  Develop character data
+   *
+   */
 
 #if 0
   BYTE *pbyBGData;

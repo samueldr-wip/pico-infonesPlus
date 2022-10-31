@@ -14,7 +14,7 @@
 /*-------------------------------------------------------------------*/
 
 #include "InfoNES_Types.h"
-
+#include <cstddef>
 /*-------------------------------------------------------------------*/
 /*  NES resources                                                    */
 /*-------------------------------------------------------------------*/
@@ -23,12 +23,14 @@
 #define SRAM_SIZE 0x2000
 #define PPURAM_SIZE 0x4000
 #define SPRRAM_SIZE 256
+#define CHRBUF_SIZE 256 * 2 * 8 * 8
 
 /* RAM */
 extern BYTE RAM[];
-
+// extern BYTE *RAM;
 /* SRAM */
 extern BYTE SRAM[];
+
 extern bool SRAMwritten;
 
 /* ROM */
@@ -54,7 +56,7 @@ extern BYTE *ROMBANK[4];
 
 /* PPU RAM */
 extern BYTE PPURAM[];
-
+//extern BYTE *PPURAM;
 /* VROM */
 extern BYTE *VROM;
 
@@ -211,10 +213,11 @@ extern WORD DoubleFrame[ 2 ][ NES_DISP_WIDTH * NES_DISP_HEIGHT ];
 extern WORD *WorkFrame;
 extern WORD WorkFrameIdx;
 #else
-extern WORD WorkFrame[NES_DISP_WIDTH * NES_DISP_HEIGHT];
+// FHextern WORD WorkFrame[NES_DISP_WIDTH * NES_DISP_HEIGHT];
 #endif
 
 extern BYTE ChrBuf[];
+
 
 extern BYTE ChrBufUpdate;
 
@@ -334,5 +337,13 @@ void InfoNES_GetSprHitY();
 void InfoNES_SetupChr();
 
 void InfoNES_SetLineBuffer(WORD *p, WORD size);
+
+void *InfoNes_GetRAM(size_t *size);
+
+void *InfoNes_GetChrBuf(size_t *size);
+
+void * InfoNes_GetPPURAM(size_t *size);
+
+void *InfoNes_GetSPRRAM(size_t *size);
 
 #endif /* !InfoNES_H_INCLUDED */

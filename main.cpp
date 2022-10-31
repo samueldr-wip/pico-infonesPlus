@@ -29,14 +29,27 @@
 #include <tusb.h>
 #include <gamepad.h>
 #include "rom_selector.h"
+#include "menu.h"
 
+#ifdef __cplusplus
+
+#include "ff.h"
+
+#endif
 const uint LED_PIN = PICO_DEFAULT_LED_PIN;
 
 #ifndef DVICONFIG
 //#define DVICONFIG dviConfig_PicoDVI
-#define DVICONFIG dviConfig_PicoDVISock
+#define DVICONFIG dviConfig_PimoroniDemoDVSockaa
 #endif
 
+#define ERRORMESSAGESIZE 40
+#define GAMESAVEDIR "/SAVES"
+util::ExclusiveProc exclProc_;
+char *ErrorMessage;
+bool isFatalError = false;
+static FATFS fs;
+char *romName;
 namespace
 {
     constexpr uint32_t CPUFreqKHz = 252000;
@@ -52,13 +65,19 @@ namespace
         .pinClock = 14,
         .invert = false,
     };
+    // Pimoroni Digital Video, SD Card & Audio Demo Board
+    constexpr dvi::Config dviConfig_PimoroniDemoDVSock = {
+        .pinTMDS = {8, 10, 12},
+        .pinClock = 6,
+        .invert = true,
+    };
 
     std::unique_ptr<dvi::DVI> dvi_;
 
     static constexpr uintptr_t NES_FILE_ADDR = 0x10080000;
 
     ROMSelector romSelector_;
-    util::ExclusiveProc exclProc_;
+    //
 
     enum class ScreenMode
     {
@@ -69,7 +88,7 @@ namespace
         MAX,
     };
     ScreenMode screenMode_{};
-
+    // ScreenMode screenMode_ = ScreenMode::SCANLINE_8_7;
     bool scaleMode8_7_ = true;
 
     void applyScreenMode()
@@ -81,21 +100,25 @@ namespace
         case ScreenMode::SCANLINE_1_1:
             scaleMode8_7_ = false;
             scanLine = true;
+            printf("ScreenMode::SCANLINE_1_1\n");
             break;
 
         case ScreenMode::SCANLINE_8_7:
             scaleMode8_7_ = true;
             scanLine = true;
+            printf("ScreenMode::SCANLINE_8_7\n");
             break;
 
         case ScreenMode::NOSCANLINE_1_1:
             scaleMode8_7_ = false;
             scanLine = false;
+            printf("ScreenMode::NOSCANLINE_1_1\n");
             break;
 
         case ScreenMode::NOSCANLINE_8_7:
             scaleMode8_7_ = true;
             scanLine = false;
+            printf("ScreenMode::NOSCANLINE_8_7\n");
             break;
         }
 
@@ -129,42 +152,136 @@ uint32_t getCurrentNVRAMAddr()
     return NES_FILE_ADDR - SRAM_SIZE * (slot + 1);
 }
 
+// void saveNVRAM()
+// {
+//     if (!SRAMwritten)
+//     {
+//         printf("SRAM not updated.\n");
+//         return;
+//     }
+
+//     printf("save SRAM\n");
+//     exclProc_.setProcAndWait([]
+//                              {
+//         static_assert((SRAM_SIZE & (FLASH_SECTOR_SIZE - 1)) == 0);
+//         if (auto addr = getCurrentNVRAMAddr())
+//         {
+//             auto ofs = addr - XIP_BASE;
+//             printf("write flash %x\n", ofs);
+//             {
+//                 flash_range_erase(ofs, SRAM_SIZE);
+//                 flash_range_program(ofs, SRAM, SRAM_SIZE);
+//             }
+//         } });
+//     printf("done\n");
+
+//     SRAMwritten = false;
+// }
+// void loadNVRAM()
+// {
+//     if (auto addr = getCurrentNVRAMAddr())
+//     {
+//         printf("load SRAM %x\n", addr);
+//         memcpy(SRAM, reinterpret_cast<void *>(addr), SRAM_SIZE);
+//     }
+//     SRAMwritten = false;
+// }
+
 void saveNVRAM()
 {
+    char pad[FF_MAX_LFN];
+
     if (!SRAMwritten)
     {
         printf("SRAM not updated.\n");
         return;
     }
-
-    printf("save SRAM\n");
-    exclProc_.setProcAndWait([]
-                             {
-        static_assert((SRAM_SIZE & (FLASH_SECTOR_SIZE - 1)) == 0);
-        if (auto addr = getCurrentNVRAMAddr())
-        {
-            auto ofs = addr - XIP_BASE;
-            printf("write flash %x\n", ofs);
-            {
-                flash_range_erase(ofs, SRAM_SIZE);
-                flash_range_program(ofs, SRAM, SRAM_SIZE);
-            }
-        } });
+    snprintf(pad, FF_MAX_LFN, "%s/%s.SAV", GAMESAVEDIR, romName);
+    printf("save SRAM to %s\n", pad);
+    FIL fil;
+    FRESULT fr;
+    fr = f_open(&fil, pad, FA_CREATE_ALWAYS | FA_WRITE);
+    if (fr != FR_OK)
+    {
+        snprintf(ErrorMessage, ERRORMESSAGESIZE, "Cannot open save file: %d", fr);
+        printf("%s\n", ErrorMessage);
+        return;
+    }
+    size_t bytesWritten;
+    fr = f_write(&fil, SRAM, SRAM_SIZE, &bytesWritten);
+    if (bytesWritten < SRAM_SIZE)
+    {
+        snprintf(ErrorMessage, ERRORMESSAGESIZE, "Error writing save: %d %d/%d written", fr, bytesWritten, SRAM_SIZE);
+        printf("%s\n", ErrorMessage);
+    }
+    f_close(&fil);
     printf("done\n");
-
     SRAMwritten = false;
 }
 
-void loadNVRAM()
+bool loadNVRAM()
 {
+    char pad[FF_MAX_LFN];
+    FILINFO fno;
+    bool ok = false;
+    snprintf(pad, FF_MAX_LFN, "%s/%s.SAV", GAMESAVEDIR,romName);
+    FIL fil;
+    FRESULT fr;
+
+    size_t bytesRead;
     if (auto addr = getCurrentNVRAMAddr())
     {
-        printf("load SRAM %x\n", addr);
-        memcpy(SRAM, reinterpret_cast<void *>(addr), SRAM_SIZE);
+        fr = f_stat(pad, &fno);
+        if (fr == FR_NO_FILE)
+        {
+            printf("Save file not found, load SRAM from flash %x\n", addr);
+            memcpy(SRAM, reinterpret_cast<void *>(addr), SRAM_SIZE);
+            ok = true;
+        }
+        else
+        {
+            if (fr == FR_OK)
+            {
+                printf("Loading save file %s\n", pad);
+                fr = f_open(&fil, pad, FA_READ);
+                if (fr == FR_OK)
+                {
+                    fr = f_read(&fil, SRAM, SRAM_SIZE, &bytesRead);
+                    if (fr == FR_OK)
+                    {
+                        printf("Savefile read from disk\n");
+                        ok = true;
+                    }
+                    else
+                    {
+                        snprintf(ErrorMessage, ERRORMESSAGESIZE, "Cannot read save file: %d %d/%d read", fr, bytesRead, SRAM_SIZE);
+                        printf("%s\n", ErrorMessage);
+                    }
+                }
+                else
+                {
+                    snprintf(ErrorMessage, ERRORMESSAGESIZE, "Cannot open save file: %d", fr);
+                    printf("%s\n", ErrorMessage);
+                }
+                f_close(&fil);
+            }
+            else
+            {
+                snprintf(ErrorMessage, ERRORMESSAGESIZE, "f_stat() failed on save file: %d", fr);
+                printf("%s\n", ErrorMessage);
+            }
+        }
+    } else {
+        ok = true;
     }
     SRAMwritten = false;
+    return ok;
 }
 
+void screenMode(int incr) {
+    screenMode_ = static_cast<ScreenMode>((static_cast<int>(screenMode_) + incr) & 3);
+    applyScreenMode();
+}
 void InfoNES_PadState(DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSystem)
 {
     static constexpr int LEFT = 1 << 6;
@@ -208,21 +325,23 @@ void InfoNES_PadState(DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSystem)
         dst = rv;
 
         auto p1 = v;
+
         auto pushed = v & ~prevButtons[i];
+
         if (p1 & SELECT)
         {
-            if (pushed & LEFT)
-            {
-                saveNVRAM();
-                romSelector_.prev();
-                reset = true;
-            }
-            if (pushed & RIGHT)
-            {
-                saveNVRAM();
-                romSelector_.next();
-                reset = true;
-            }
+            // if (pushed & LEFT)
+            // {
+            //     saveNVRAM();
+            //     romSelector_.prev();
+            //     reset = true;
+            // }
+            // if (pushed & RIGHT)
+            // {
+            //     saveNVRAM();
+            //     romSelector_.next();
+            //     reset = true;
+            // }
             if (pushed & START)
             {
                 saveNVRAM();
@@ -238,13 +357,11 @@ void InfoNES_PadState(DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSystem)
             }
             if (pushed & UP)
             {
-                screenMode_ = static_cast<ScreenMode>((static_cast<int>(screenMode_) - 1) & 3);
-                applyScreenMode();
+                screenMode(-1);
             }
             else if (pushed & DOWN)
             {
-                screenMode_ = static_cast<ScreenMode>((static_cast<int>(screenMode_) + 1) & 3);
-                applyScreenMode();
+                screenMode(+1);
             }
         }
 
@@ -264,6 +381,16 @@ void InfoNES_MessageBox(const char *pszMsg, ...)
     printf("\n");
 }
 
+void InfoNES_Error(const char *pszMsg, ...)
+{
+    printf("[Error]");
+    va_list args;
+    va_start(args, pszMsg);
+    vsnprintf(ErrorMessage, ERRORMESSAGESIZE, pszMsg, args);
+    printf("%s", ErrorMessage);
+    va_end(args);
+    printf("\n");
+}
 bool parseROM(const uint8_t *nesFile)
 {
     memcpy(&NesHeader, nesFile, sizeof(NesHeader));
@@ -364,12 +491,13 @@ void __not_in_flash_func(InfoNES_SoundOutput)(int samples, BYTE *wave1, BYTE *wa
 
 extern WORD PC;
 
-void InfoNES_LoadFrame()
+int InfoNES_LoadFrame()
 {
-    gpio_put(LED_PIN, hw_divider_s32_quotient_inlined(dvi_->getFrameCounter(), 60) & 1);
-    //    printf("%04x\n", PC);
-
+    auto count = dvi_->getFrameCounter();
+    auto onOff = hw_divider_s32_quotient_inlined(count, 60) & 1;
+    gpio_put(LED_PIN, onOff);
     tuh_task();
+    return count;
 }
 
 namespace
@@ -417,7 +545,32 @@ void __not_in_flash_func(InfoNES_PreDrawLine)(int line)
     util::WorkMeterMark(0xaaaa);
     auto b = dvi_->getLineBuffer();
     util::WorkMeterMark(0x5555);
+    // b.size --> 640
+    // printf("Pre Draw%d\n", b->size());
+    // WORD = 2 bytes
+    // b->size = 640
+    // printf("%d\n", b->size());
     InfoNES_SetLineBuffer(b->data() + 32, b->size());
+    //    (*b)[319] = line + dvi_->getFrameCounter();
+
+    currentLineBuffer_ = b;
+}
+
+void __not_in_flash_func(RomSelect_PreDrawLine)(int line)
+{
+    util::WorkMeterMark(0xaaaa);
+    auto b = dvi_->getLineBuffer();
+    util::WorkMeterMark(0x5555);
+    // b.size --> 640
+    // printf("Pre Draw%d\n", b->size());
+    // WORD = 2 bytes
+    // b->size = 640
+    // printf("%d\n", b->size());
+
+    // Note: First character is cutted off to the left with +32 offset
+    RomSelect_SetLineBuffer(b->data() + 32, b->size());
+    // RomSelect_SetLineBuffer(b->data() + 34, b->size());
+
     //    (*b)[319] = line + dvi_->getFrameCounter();
 
     currentLineBuffer_ = b;
@@ -449,7 +602,9 @@ bool loadAndReset()
         printf("NES file parse error.\n");
         return false;
     }
-    loadNVRAM();
+    if ( loadNVRAM() == false ) {
+        return false;
+    }
 
     if (InfoNES_Reset() < 0)
     {
@@ -463,8 +618,8 @@ bool loadAndReset()
 int InfoNES_Menu()
 {
     // InfoNES_Main() のループで最初に呼ばれる
-    loadAndReset();
-    return 0;
+    return loadAndReset() ? 0 : -1;
+    // return 0;
 }
 
 void __not_in_flash_func(core1_main)()
@@ -479,12 +634,15 @@ void __not_in_flash_func(core1_main)()
         {
             if (scaleMode8_7_)
             {
+                // Default
                 dvi_->convertScanBuffer12bppScaled16_7(34, 32, 288 * 2);
+
                 // 34 + 252 + 34
                 // 32 + 576 + 32
             }
             else
             {
+                //
                 dvi_->convertScanBuffer12bpp();
             }
         }
@@ -496,13 +654,71 @@ void __not_in_flash_func(core1_main)()
     }
 }
 
+bool initSDCard()
+{
+    FRESULT fr;
+    TCHAR str[40];
+    sleep_ms(1000);
+
+    printf("Mounting SDcard");
+    fr = f_mount(&fs, "", 1);
+    if (fr != FR_OK)
+    {
+        snprintf(ErrorMessage, ERRORMESSAGESIZE, "SD card mount error: %d", fr);
+        printf("%s\n", ErrorMessage);
+        return false;
+    }
+    printf("\n");
+   
+    fr = f_chdir("/");
+    if (fr != FR_OK)
+    {
+        snprintf(ErrorMessage, ERRORMESSAGESIZE, "Cannot change dir to / : %d", fr);
+        printf("%s\n", ErrorMessage);
+        return false;
+    }
+    // for f_getcwd to work, set
+    //   #define FF_FS_RPATH		2
+    // in drivers/fatfs/ffconf.c
+    fr = f_getcwd(str, sizeof(str));
+    if (fr != FR_OK)
+    {
+        snprintf(ErrorMessage, ERRORMESSAGESIZE, "Cannot get current dir: %d", fr);
+        printf("%s\n", ErrorMessage);
+        return false;
+    }
+    printf("Current directory: %s\n", str);
+    printf("Creating directory %s\n", GAMESAVEDIR);
+    fr = f_mkdir(GAMESAVEDIR);
+    if (fr != FR_OK)
+    {
+        if (fr == FR_EXIST)
+        {
+            printf("Directory already exists.\n");
+        }
+        else
+        {
+            snprintf(ErrorMessage, ERRORMESSAGESIZE, "Cannot create dir %s: %d", GAMESAVEDIR, fr);
+            printf("%s\n", ErrorMessage);
+            return false;
+        }
+    }
+    return true;
+}
+
 int main()
 {
+    char selectedRom[80];
+    romName = selectedRom;
+    char errMSG[ERRORMESSAGESIZE];
+    errMSG[0] = 0;
+    ErrorMessage = errMSG;
     vreg_set_voltage(VREG_VOLTAGE_1_20);
     sleep_ms(10);
     set_sys_clock_khz(CPUFreqKHz, true);
 
     stdio_init_all();
+    printf("Start program\n");
 
     gpio_init(LED_PIN);
     gpio_set_dir(LED_PIN, GPIO_OUT);
@@ -510,7 +726,7 @@ int main()
 
     tusb_init();
 
-    romSelector_.init(NES_FILE_ADDR);
+    // romSelector_.init(NES_FILE_ADDR);
 
     // util::dumpMemory((void *)NES_FILE_ADDR, 1024);
 
@@ -550,12 +766,12 @@ int main()
         } while (buf[126]); 
     }
 #endif
-
     //
     dvi_ = std::make_unique<dvi::DVI>(pio0, &DVICONFIG,
                                       dvi::getTiming640x480p60Hz());
     //    dvi_->setAudioFreq(48000, 25200, 6144);
     dvi_->setAudioFreq(44100, 28000, 6272);
+   
     dvi_->allocateAudioBuffer(256);
     //    dvi_->setExclusiveProc(&exclProc_);
 
@@ -569,8 +785,22 @@ int main()
     dvi_->getAudioRingBuffer().advanceWritePointer(255);
 
     multicore_launch_core1(core1_main);
+    isFatalError = !initSDCard();
+    while (true)
+    {
 
-    InfoNES_Main();
+        screenMode_ = ScreenMode::NOSCANLINE_8_7;
+        applyScreenMode();
+        char *rom = menu(NES_FILE_ADDR, ErrorMessage, isFatalError);
+        isFatalError = false;
+        ErrorMessage[0] = '\0';
+        strcpy(selectedRom, rom);
+        printf("Now playing: %s\n", selectedRom);
+        romSelector_.init(NES_FILE_ADDR);
+        screenMode_ = ScreenMode::SCANLINE_8_7;
+        applyScreenMode();
+        InfoNES_Main();
+    }
 
     return 0;
 }
