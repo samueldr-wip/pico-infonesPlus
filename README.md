@@ -210,11 +210,9 @@ Click on the link below for your specific board configuration:
 
 ![Image](assets/PicoInfoNesPlusPimoroni.jpeg)
 
-### Image: one or two player setup with usb controller and NES controller port 2
+### Image: one or two player setup with usb controller and NES controller port
 
-In this image the NES controller port is wired to port 2.
-
-For single player games: use USB controller. 
+For single player games, connect either an USB controller **or** a NES controller. Not both!
 
 For two player games: Connect a USB controller for player 1 and a NES controller for player 2.
 
@@ -334,8 +332,6 @@ See image below.
 
 ### Image: one or two player setup with usb controller and NES controller port
 
-In this image the NES controller port is wired to port 1.
-
 For single player games, connect either an USB controller **or** a NES controller. Not both!
 
 For two player games: Connect a USB controller for player 1 and a NES controller for player 2.
@@ -454,8 +450,6 @@ Connect the nunchuck breakout adapter to the Feather DVI using the STEMMA QT cab
 
 ### Image: one or two player setup with usb controller and NES/WII_classic controller port
 
-In this image the NES controller port is wired to port 1.
-
 For single player games, connect either an USB controller **or** a NES/WII-classic controller. Not both!
 
 For two player games: Connect a USB controller for player 1 and a NES or WII-Classic controller for player 2.
@@ -526,8 +520,6 @@ For two player games with two NES controllers you need an extra NES controller p
 
 ### Image: one or two player setup with usb controller and NES controller port
 
-In this image the NES controller port is wired to port 1.
-
 For single player games, connect either an USB controller **or** a NES controller. Not both!
 
 For two player games: Connect a USB controller for player 1 and a NES controller for player 2.
@@ -550,13 +542,13 @@ Choose either of the following:
 ## PCB with Raspberry Pi Pico
 
 Create your own little Pico Based NES console and play with an orginal (S)NES controller. 
-Several Companies  can make these PCBs for you. 
+The PCB design files can be found in the [PCB](/PCB) folder. Several Companies  can make these PCBs for you. 
 
 I personally recommend [PCBWay](https://www.pcbway.com/). The boards i ordered from them are of excellent quality.
 
 [![Image](assets/pcbw.png)](https://www.pcbway.com/)
 
-When ordering, simply upload the zip file containing the design.  This zip  file is available in the [releases page](https://github.com/fhoedemakers/pico-infonesPlus/releases/latest) and can also be found in the [PCB](PCB/) folder. 
+When ordering, simply upload the zip file containing the design.  This zip  file is available in the [releases page](https://github.com/fhoedemakers/pico-infonesPlus/releases/latest) and can also be found [here](PCB/). 
 
 > [!NOTE]
 >  Soldering skills are required.
