@@ -34,7 +34,7 @@ int nSRAM_SaveFlag;
 /*-------------------------------------------------------------------*/
 /*  Variables for Windows                                            */
 /*-------------------------------------------------------------------*/
-#define APP_NAME     "InfoNES v0.91J"
+#define APP_NAME     "InfoNES v0.92J"
  
 HWND hWndMain;
 WNDCLASS wc;
@@ -60,7 +60,8 @@ WORD NesPalette[ 64 ] =
 
 // Screen Size Magnification
 WORD wScreenMagnification = 2;
-#define NES_MENU_HEIGHT     46
+#define NES_MENU_HEIGHT     54
+#define NES_MENU_WIDTH			8
 
 /*-------------------------------------------------------------------*/
 /*  Variables for Emulation Thread                                   */
@@ -84,7 +85,7 @@ BOOL bAutoFrameskip = TRUE;
 /*-------------------------------------------------------------------*/
 /*  Variables for Sound Emulation                                    */
 /*-------------------------------------------------------------------*/
-DIRSOUND* lpSndDevice;
+DIRSOUND* lpSndDevice = NULL;
 
 /*-------------------------------------------------------------------*/
 /*  Variables for Expiration                                         */
@@ -141,7 +142,7 @@ int WINAPI WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLin
                              WS_VISIBLE | WS_POPUP | WS_OVERLAPPEDWINDOW,
                              200,
                              120,
-                             NES_DISP_WIDTH * wScreenMagnification,
+                             NES_DISP_WIDTH * wScreenMagnification + NES_MENU_WIDTH,
                              NES_DISP_HEIGHT * wScreenMagnification + NES_MENU_HEIGHT,
                              NULL,
                              NULL,
@@ -478,7 +479,7 @@ LRESULT CALLBACK MainWndproc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
           /*-------------------------------------------------------------------*/
           APU_Mute = ( APU_Mute ? 0 : 1 );
 
-          if (!lpSndDevice->SoundMute( APU_Mute ) )
+          if (lpSndDevice != NULL && !lpSndDevice->SoundMute( APU_Mute ) )
           {
             InfoNES_MessageBox( "SoundMute() Failed." );
             exit(0);
@@ -1145,6 +1146,7 @@ void InfoNES_SoundClose( void )
 {
   lpSndDevice->SoundClose();
   delete lpSndDevice;
+	lpSndDevice = NULL;
 }
 
 /*===================================================================*/
@@ -1300,7 +1302,8 @@ void SetWindowSize( WORD wMag )
 {          
   wScreenMagnification = wMag;
 
-  SetWindowPos( hWndMain, HWND_TOPMOST, 0, 0, NES_DISP_WIDTH * wMag, 
+  SetWindowPos( hWndMain, HWND_TOPMOST, 0, 0, 
+								NES_DISP_WIDTH * wMag + NES_MENU_WIDTH, 
                 NES_DISP_HEIGHT * wMag + NES_MENU_HEIGHT, SWP_NOMOVE );
           
   // Show title screen if emulation thread dosent exist
