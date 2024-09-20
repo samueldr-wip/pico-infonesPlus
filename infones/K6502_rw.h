@@ -77,13 +77,13 @@ static inline BYTE K6502_Read( WORD wAddr )
         WORD addr = PPU_Addr & 0x3fff;
 
         // Set return value;
-	byRet = PPU_Temp;
+	byRet = PPU_R7;
 
         // Increment PPU Address
         PPU_Addr += PPU_Increment;
 
         // Read PPU Memory
-        PPU_Temp = PPUBANK[ addr >> 10 ][ addr & 0x3ff ];
+        PPU_R7 = PPUBANK[ addr >> 10 ][ addr & 0x3ff ];
 
         return byRet;
       }
@@ -116,7 +116,7 @@ static inline BYTE K6502_Read( WORD wAddr )
       }
       else /* $2000, $2001, $2003, $2005, $2006 */
       {
-	return PPU_Temp;
+	return PPU_R7;
       }
       break;
 
@@ -264,7 +264,8 @@ static inline void K6502_Write( WORD wAddr, BYTE byData )
           if ( PPU_Latch_Flag )
           {
             // V-Scroll Register
-            PPU_Scr_V_Next = ( byData > 239 ) ? 0 : byData;
+            PPU_Scr_V_Next = ( byData > 239 ) ? byData - 240 : byData;	    
+	    if ( byData > 239 ) PPU_NameTableBank ^= NAME_TABLE_V_MASK; 
             PPU_Scr_V_Byte_Next = PPU_Scr_V_Next >> 3;
             PPU_Scr_V_Bit_Next = PPU_Scr_V_Next & 7;
 
@@ -296,7 +297,9 @@ static inline void K6502_Write( WORD wAddr, BYTE byData )
             PPU_Temp = ( PPU_Temp & 0xFF00 ) | ( ( (WORD)byData ) & 0x00FF);
 	    PPU_Addr = PPU_Temp;
 #endif
-            InfoNES_SetupScr();
+	    if ( !( PPU_R2 & R2_IN_VBLANK ) ) {
+	      InfoNES_SetupScr();
+	    }
           }
           else
           {

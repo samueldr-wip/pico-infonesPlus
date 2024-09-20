@@ -1,4 +1,4 @@
-//Microsoft Developer Studio generated resource script.
+//Microsoft eMbedded Visual C++ generated resource script.
 //
 #include "resource.h"
 
@@ -63,11 +63,13 @@ END
 
 IDM_MENU SHMENUBAR MOVEABLE PURE 
 BEGIN
-    IDM_MENU, 2,
+    IDM_MENU, 3,
     I_IMAGENONE, ID_FILE, TBSTATE_ENABLED, 
     TBSTYLE_DROPDOWN | TBSTYLE_AUTOSIZE, IDS_MENUITEM40005, 0, 0,
     I_IMAGENONE, ID_OPTION, TBSTATE_ENABLED, 
     TBSTYLE_DROPDOWN | TBSTYLE_AUTOSIZE, IDS_MENUITEM40026, 0, 1,
+    I_IMAGENONE, IDM_MAIN_RESUME, TBSTATE_ENABLED, TBSTYLE_AUTOSIZE, 
+    IDS_MENUITEM40031, 0, NOMENU,
 END
 
 
@@ -83,7 +85,6 @@ BEGIN
         MENUITEM " ﬁ∞ºﬁÆ›",                     IDM_MAIN_VERSION
         MENUITEM "Ãﬂ€ ﬂ√®",                     IDM_MAIN_ROM
         MENUITEM SEPARATOR
-        MENUITEM "⁄ºﬁ≠∞—",                      IDM_MAIN_RESUME
         MENUITEM "ÿæØƒ",                        IDM_MAIN_RESET
         MENUITEM "èIóπ",                        IDM_MAIN_END
     END
@@ -103,8 +104,9 @@ BEGIN
         MENUITEM "∑∞ê›íË",                      IDM_MAIN_KEY_CONFIG
         MENUITEM SEPARATOR
         MENUITEM "ª≥›ƒﬁ",                       IDM_MAIN_SOUND
-        MENUITEM "∏ÿØÃﬂ",                       IDM_MAIN_CLIP
+        MENUITEM "âÊñ ∏ÿØÃﬂ",                   IDM_MAIN_CLIP
     END
+    MENUITEM "⁄ºﬁ≠∞—",                      IDM_MAIN_RESUME
 END
 
 
@@ -192,6 +194,11 @@ END
 STRINGTABLE DISCARDABLE 
 BEGIN
     IDS_MENU_OPTION         "µÃﬂºÆ›"
+END
+
+STRINGTABLE DISCARDABLE 
+BEGIN
+    IDS_MENUITEM40031       "⁄ºﬁ≠∞—"
 END
 
 #endif    // ì˙ñ{åÍ resources

@@ -115,7 +115,7 @@ RSC=rc.exe
 # ADD RSC /l 0x411 /d UNDER_CE=$(CEVersion) /d _WIN32_WCE=$(CEVersion) /d "NDEBUG" /d "UNICODE" /d "_UNICODE" /d "$(CePlatform)" /d "ARM" /d "_ARM_" /d "ARMV4" /r
 CPP=clarm.exe
 # ADD BASE CPP /nologo /W3 /D _WIN32_WCE=$(CEVersion) /D "$(CePlatform)" /D "ARM" /D "_ARM_" /D "ARMV4" /D UNDER_CE=$(CEVersion) /D "UNICODE" /D "_UNICODE" /D "NDEBUG" /YX /O2 /M$(CECrtMT) /c
-# ADD CPP /nologo /W3 /Oxt /D _WIN32_WCE=$(CEVersion) /D "$(CePlatform)" /D "ARM" /D "_ARM_" /D "ARMV4" /D UNDER_CE=$(CEVersion) /D "UNICODE" /D "_UNICODE" /D "NDEBUG" /YX  /M$(CECrtMT) /c
+# ADD CPP /nologo /W3 /Oxt /D _WIN32_WCE=$(CEVersion) /D "$(CePlatform)" /D "ARM" /D "_ARM_" /D "ARMV4" /D UNDER_CE=$(CEVersion) /D "UNICODE" /D "_UNICODE" /D "NDEBUG" /YX /M$(CECrtMT) /c
 MTL=midl.exe
 # ADD BASE MTL /nologo /D "NDEBUG" /mktyplib203 /o "NUL" /win32
 # ADD MTL /nologo /D "NDEBUG" /mktyplib203 /o "NUL" /win32
@@ -594,6 +594,7 @@ DEP_CPP_INFONE=\
 	"..\mapper\InfoNES_Mapper_095.cpp"\
 	"..\mapper\InfoNES_Mapper_096.cpp"\
 	"..\mapper\InfoNES_Mapper_097.cpp"\
+	"..\mapper\InfoNES_Mapper_099.cpp"\
 	"..\mapper\InfoNES_Mapper_100.cpp"\
 	"..\mapper\InfoNES_Mapper_101.cpp"\
 	"..\mapper\InfoNES_Mapper_105.cpp"\
@@ -867,7 +868,7 @@ DEP_CPP_INFONES_=\
 	"..\InfoNES_Types.h"\
 	
 NODEP_CPP_INFONES_=\
-	"..\..\..\..\..\..\..\..\Program Files\Windows CE Tools\wce420\POCKET PC 2003\Include\emulator\vibrate.h"\
+	"..\..\..\..\..\..\..\Program Files\Windows CE Tools\wce420\POCKET PC 2003\Include\emulator\vibrate.h"\
 	".\inuserm.h"\
 	".\ipapi.h"\
 	".\x.h"\
@@ -903,7 +904,7 @@ DEP_CPP_INFONES_=\
 	{$(INCLUDE)}"winuserm.h"\
 	
 NODEP_CPP_INFONES_=\
-	"..\..\..\..\..\..\..\..\Program Files\Windows CE Tools\wce420\POCKET PC 2003\Include\ARMV4\vibrate.h"\
+	"..\..\..\..\..\..\..\Program Files\Windows CE Tools\wce420\POCKET PC 2003\Include\ARMV4\vibrate.h"\
 	
 
 !ELSEIF  "$(CFG)" == "InfoNES2003 - Win32 (WCE ARMV4) Debug"
@@ -1020,6 +1021,10 @@ SOURCE=.\resource.h
 # Begin Group "Resource Files"
 
 # PROP Default_Filter "ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe"
+# Begin Source File
+
+SOURCE=.\res\InfoNES2003.ICO
+# End Source File
 # Begin Source File
 
 SOURCE=.\InfoNES2003.rc

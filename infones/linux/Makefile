@@ -1,5 +1,5 @@
 CC = gcc
-TARBALL = InfoNES094J
+TARBALL = InfoNES096J
 
 # InfoNES
 .CFILES =	./../K6502.cpp \
