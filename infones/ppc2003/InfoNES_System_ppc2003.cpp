@@ -48,7 +48,7 @@ int		g_nSRAM_SaveFlag;
 /*  Global Variables                                                 */
 /*-------------------------------------------------------------------*/
 
-#define VERSION  "InfoNES v0.94J"
+#define VERSION  "InfoNES v0.95J"
 const TCHAR c_szAppName[] = TEXT("InfoNES Pocket PC 2003 Application");
 const TCHAR c_szTitle[]   = TEXT("InfoNES");
 

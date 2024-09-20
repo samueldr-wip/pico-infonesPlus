@@ -98,8 +98,10 @@ static inline BYTE K6502_Read( WORD wAddr )
         // Set return value
         byRet = PPU_R2;
 
+#if 0
         // Reset a V-Blank flag
         PPU_R2 &= ~R2_IN_VBLANK;
+#endif
 
         // Reset address latch
         PPU_Latch_Flag = 0;
