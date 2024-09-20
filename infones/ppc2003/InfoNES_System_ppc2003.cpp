@@ -48,7 +48,7 @@ int		g_nSRAM_SaveFlag;
 /*  Global Variables                                                 */
 /*-------------------------------------------------------------------*/
 
-#define VERSION  "InfoNES v0.93J"
+#define VERSION  "InfoNES v0.94J"
 const TCHAR c_szAppName[] = TEXT("InfoNES Pocket PC 2003 Application");
 const TCHAR c_szTitle[]   = TEXT("InfoNES");
 
@@ -694,7 +694,7 @@ LRESULT CALLBACK MainWndproc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
       Resume();
       break;
     case IDM_MAIN_VERSION:
-      ShowMessage( "%s\nA portable NES emulator\nCopyright (C) 1999-2004\nJay's Factory",
+      ShowMessage( "%s\nA portable NES emulator\nCopyright (C) 1999-2005\nJay's Factory",
 		   VERSION );
       Resume();
       break;

@@ -1,21 +1,24 @@
 /*===================================================================*/
 /*                                                                   */
-/*  InfoNES_System_Linux.cpp : Linux specific File                   */
+/* InfoNES_System_Zaurus.cpp : The function which depends on a       */
+/*                             system (for Linux Zaurus)             */
 /*                                                                   */
-/*  2001/05/18  InfoNES Project ( Sound is based on DarcNES )        */
+/*  2004/06/13  InfoNES Project                                      */
 /*                                                                   */
 /*===================================================================*/
 
 /*-------------------------------------------------------------------*/
 /*  Include files                                                    */
 /*-------------------------------------------------------------------*/
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <gtk/gtk.h>
-#include <gdk/gdkkeysyms.h>
+#include <stdarg.h>
 #include <pthread.h>
+
+#include <qpe/qpeapplication.h>
+#include "zinfones.h"
+#include "zfileselector.h"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -32,39 +35,16 @@
 /*  ROM image file information                                       */
 /*-------------------------------------------------------------------*/
 
+char szFileName[ 256 ];
 char szRomName[ 256 ];
 char szSaveName[ 256 ];
 int nSRAM_SaveFlag;
 
 /*-------------------------------------------------------------------*/
-/*  Constants ( Linux specific )                                     */
+/*  Variables for Linux Zaurus                                       */
 /*-------------------------------------------------------------------*/
-
-#define VBOX_SIZE    7 
 #define SOUND_DEVICE "/dev/dsp"
-#define VERSION      "InfoNES v0.94J"
-
-/*-------------------------------------------------------------------*/
-/*  Global Variables ( Linux specific )                              */
-/*-------------------------------------------------------------------*/
-
-/* GtkWidget is the storage type for widgets */
-GtkWidget *top, *vbox, *draw_area, *filew;
-GdkDrawable *drawable;
-GdkGC *gc = NULL;
-
-GdkPixmap *pixmap;
-GdkBitmap *mask;
-GtkStyle *style;
-
-/* Emulation thread */
-pthread_t emulation_tid;
-int bThread;
-
-/* Pad state */
-DWORD dwKeyPad1;
-DWORD dwKeyPad2;
-DWORD dwKeySystem;
+#define VERSION      "InfoNES v0.93J RC4"
 
 /* For Sound Emulation */
 BYTE final_wave[2048];
@@ -72,24 +52,7 @@ int waveptr;
 int wavflag;
 int sound_fd;
 
-/*-------------------------------------------------------------------*/
-/*  Function prototypes ( Linux specific )                           */
-/*-------------------------------------------------------------------*/
-
-void *emulation_thread( void *args );
-void add_key( GtkWidget *widget, GdkEventKey *event, gpointer callback_data );
-void remove_key( GtkWidget *widget, GdkEventKey *event, gpointer callback_data );
-gint close_application( GtkWidget *widget, GdkEvent *event, gpointer data );
-void reset_application( void );
-gint start_application_aux( GtkObject *fw );
-void start_application( char *filename );
-void close_dialog( GtkWidget *widget, gpointer data );
-void closing_dialog( GtkWidget *widget, gpointer data );
-
-int LoadSRAM();
-int SaveSRAM();
-
-/* Palette data */
+// Palette data
 WORD NesPalette[ 64 ] =
 {
   0x39ce, 0x1071, 0x0015, 0x2013, 0x440e, 0x5402, 0x5000, 0x3c20,
@@ -102,89 +65,111 @@ WORD NesPalette[ 64 ] =
   0x7f94, 0x73f4, 0x57d7, 0x5bf9, 0x4ffe, 0x0000, 0x0000, 0x0000
 };
 
+/* Emulation thread */
+pthread_t emulation_tid;
+int bThread;
+
+/* For Qt */
+zinfones *zi;
+
+/*-------------------------------------------------------------------*/
+/*  Function prototypes ( Linux Zaurus specific )                    */
+/*-------------------------------------------------------------------*/
+void *emulation_thread( void *args );
+int LoadSRAM();
+int SaveSRAM();
+int StartEmulation(const char *);
+int TerminateEmulation();
+
 /*===================================================================*/
 /*                                                                   */
-/*                main() : Application main                          */
+/*                  main() : Application main                        */
 /*                                                                   */
 /*===================================================================*/
+int main( int argc, char ** argv )
+{
+  // Help message
+  printf("%s: A fast and portable NES emulator\n"
+	 "Copyright (c) 1999-2004 Jay's Factory <jays_factory@excite.co.jp>\n",
+	 VERSION );
 
-/* Application main */
-int main(int argc, char **argv)
-{                                  
-  int       i;
+  // Create Qt window
+  QPEApplication a( argc, argv );
+  zi = new zinfones( WorkFrame );
+  a.setMainWidget( zi );
+  zi->setCaption( VERSION );	
+  zi->show();
 
-  /*-------------------------------------------------------------------*/
-  /*  Initialize GTK+/GDK                                              */
-  /*-------------------------------------------------------------------*/
+  // Start Emulation
+  if ( argc < 2 )
+  {   
+    /* File selector */ 
+    QString sFile;
+    zfileselector dlg( ".", zi, VERSION, TRUE, 0 );
 
-  g_thread_init( NULL );
-  gtk_set_locale();
-  gtk_init(&argc, &argv);
-  gdk_rgb_init();
+    if ( dlg.exec() == QDialog::Accepted )
+    {
+      sFile = dlg.getFile();
+    }
 
-  /*-------------------------------------------------------------------*/
-  /*  Create a top window                                              */
-  /*-------------------------------------------------------------------*/
-
-  /* Create a window */ 
-  top=gtk_window_new(GTK_WINDOW_TOPLEVEL);
-  gtk_widget_set_usize( GTK_WIDGET(top), NES_DISP_WIDTH + VBOX_SIZE, NES_DISP_HEIGHT + VBOX_SIZE );
-  gtk_window_set_title( GTK_WINDOW(top), VERSION );
-  gtk_widget_set_events( GTK_WIDGET(top), GDK_KEY_RELEASE_MASK );
-
-  /* Destroy a window */
-  gtk_signal_connect( GTK_OBJECT(top), "destroy",
-		      GTK_SIGNAL_FUNC( close_application ),
-		      NULL );
-
-  /* Create a vbox */ 
-  vbox=gtk_vbox_new(FALSE, 5);
-  gtk_container_set_border_width(GTK_CONTAINER(vbox), 3);
-  gtk_container_add(GTK_CONTAINER(top), vbox);
-  
-  /* Create a drawing area */ 
-  draw_area = gtk_drawing_area_new();
-  gtk_box_pack_start(GTK_BOX (vbox), draw_area, TRUE, TRUE, 0);
-
-  gtk_widget_show_all(top);
-
-  /*-------------------------------------------------------------------*/
-  /*  Pad Control                                                      */
-  /*-------------------------------------------------------------------*/
-
-  /* Initialize a pad state */
-  dwKeyPad1   = 0;
-  dwKeyPad2   = 0;
-  dwKeySystem = 0;
-
-  /* Connecting to key event */
-  gtk_signal_connect( GTK_OBJECT(top), "key_press_event",
-		      GTK_SIGNAL_FUNC( add_key ),
-		      NULL );
-
-  gtk_signal_connect( GTK_OBJECT(top), "key_release_event",
-		      GTK_SIGNAL_FUNC( remove_key ),
-		      NULL );
-
-  /*-------------------------------------------------------------------*/
-  /*  Load Cassette & Create Thread                                    */
-  /*-------------------------------------------------------------------*/
-
-  /* Initialize thread state */
-  bThread = FALSE;
-
-  /* If a rom name specified, start it */
-  if ( argc == 2 )
-  {
-    start_application( argv[ 1 ] );
+    if ( StartEmulation( sFile.ascii() ) < 0 )
+      exit( 0 );
+  } else {  
+    if ( StartEmulation( argv[1] ) < 0 )
+      exit( 0 );
   }
 
-  /* show the window */
-  gdk_threads_enter();
-  gtk_main ();
-  gdk_threads_leave();
+  // Hook to Qt application
+  a.exec();
 
-  return(0);
+  // Terminate emulation
+  TerminateEmulation();  
+}
+
+/*===================================================================*/
+/*                                                                   */
+/*                StartEmulation() : Start Emulation                 */
+/*                                                                   */
+/*===================================================================*/
+
+int StartEmulation(const char *fname)
+{
+  strcpy( szFileName, fname);
+
+  // Load cassette
+  if ( InfoNES_Load( szFileName ) == 0 )
+  {
+    // Set a ROM image name
+    strcpy( szRomName, szFileName );
+    LoadSRAM();
+
+    /* Create Emulation Thread */
+    bThread = TRUE;
+    pthread_create( &emulation_tid, NULL, emulation_thread, NULL );
+    return 0;
+  }
+  return -1;
+}
+
+/*===================================================================*/
+/*                                                                   */
+/*           TerminateEmulation() : Terminate Emulation              */
+/*                                                                   */
+/*===================================================================*/
+
+int TerminateEmulation()
+{
+  /* Terminate emulation thread */
+  bThread = FALSE;
+  zi->dwKeySystem |= PAD_SYS_QUIT; 
+
+  /* Waiting for Termination */
+  pthread_join( emulation_tid, NULL );
+  
+  /* Save SRAM*/
+  SaveSRAM();
+
+  return 0;
 }
 
 /*===================================================================*/
@@ -196,313 +181,6 @@ int main(int argc, char **argv)
 void *emulation_thread(void *args)
 {
   InfoNES_Main();
-}
-
-/*===================================================================*/
-/*                                                                   */
-/*          add_key() : Connecting to the key_press_event event      */
-/*                                                                   */
-/*===================================================================*/
-
-void add_key( GtkWidget *widget, GdkEventKey *event, gpointer callback_data )
-{
-  switch ( event->keyval )
-  {
-    case GDK_Right:
-      dwKeyPad1 |= ( 1 << 7 );
-      break;
-
-    case GDK_Left:
-      dwKeyPad1 |= ( 1 << 6 );
-      break;
-
-    case GDK_Down:
-      dwKeyPad1 |= ( 1 << 5 );
-      break;
-      
-    case GDK_Up:
-      dwKeyPad1 |= ( 1 << 4 );
-      break;
-
-    case 's':
-    case 'S':
-      /* Start */
-      dwKeyPad1 |= ( 1 << 3 );
-      break;
-
-    case 'a':
-    case 'A':
-      /* Select */
-      dwKeyPad1 |= ( 1 << 2 );
-      break;
-
-    case 'z':                     
-    case 'Z':                     
-      /* 'A' */
-      dwKeyPad1 |= ( 1 << 1 );
-      break;
-
-    case 'x': 
-    case 'X': 
-      /* 'B' */
-      dwKeyPad1 |= ( 1 << 0 );
-      break;
-
-    case 'c':
-    case 'C':   
-      /* Toggle up and down clipping */
-      PPU_UpDown_Clip = ( PPU_UpDown_Clip ? 0 : 1 );
-      break;
-
-    case 'q':
-    case 'Q':
-      close_application( widget, NULL, NULL );
-      break;
-
-    case 'r':
-    case 'R':
-      /* Reset the application */
-      reset_application(); 
-      break;
-
-    case 'l':
-    case 'L':  
-      /* If emulation thread runs, nothing here */
-      if ( bThread != TRUE )
-      {
-	/* Create a file selection widget */
-	filew = gtk_file_selection_new( "Load" );
-	gtk_widget_show( filew );
-	
-        /* Connecting to button event */
-	gtk_signal_connect_object( GTK_OBJECT( GTK_FILE_SELECTION( filew )->ok_button ), 
-				   "clicked",
-				   ( GtkSignalFunc ) start_application_aux,
-				   GTK_OBJECT( filew ) );
-
-	gtk_signal_connect_object( GTK_OBJECT( GTK_FILE_SELECTION( filew )->cancel_button ), 
-				   "clicked",
-				   ( GtkSignalFunc ) gtk_widget_destroy,
-				   GTK_OBJECT( filew ) );
-      }
-      break;
-
-    case GDK_Page_Up:
-      /* Increase Frame Skip */
-      FrameSkip++;
-      break;
-
-    case GDK_Page_Down:  
-      /* Decrease Frame Skip */
-      if ( FrameSkip > 0 )
-      {
-	FrameSkip--;
-      }
-      break;
-
-    case 'm':
-    case 'M':
-      /* Toggle of sound mute */
-      APU_Mute = ( APU_Mute ? 0 : 1 );
-      break;
-
-    case 'i':
-    case 'I':
-      /* If emulation thread doesn't run, nothing here */
-      if ( bThread )
-      {
-	InfoNES_MessageBox( "Mapper : %d\nPRG ROM : %dKB\nCHR ROM : %dKB\n" \
-			    "Mirroring : %s\nSRAM : %s\n4 Screen : %s\nTrainer : %s\n",
-			    MapperNo, NesHeader.byRomSize * 16, NesHeader.byVRomSize * 8,
-			    ( ROM_Mirroring ? "V" : "H" ), ( ROM_SRAM ? "Yes" : "No" ), 
-			    ( ROM_FourScr ? "Yes" : "No" ), ( ROM_Trainer ? "Yes" : "No" ) );
-      }
-      break;
-
-    case 'v':
-    case 'V':
-      /* Version Infomation */
-      InfoNES_MessageBox( "%s\nA fast and portable NES emulator\n"
-			  "Copyright (c) 1999-2005 Jay's Factory <jays_factory@excite.co.jp>",
-			  VERSION );
-      break;
-
-    defalut:  
-      break;
-  }
-}
-
-/*===================================================================*/
-/*                                                                   */
-/*       remove_key() : Connecting to the key_release_event event    */
-/*                                                                   */
-/*===================================================================*/
-
-void remove_key( GtkWidget *widget, GdkEventKey *event, gpointer callback_data )
-{
-  switch ( event->keyval )
-  {
-    case GDK_Right:
-      dwKeyPad1 &= ~( 1 << 7 );
-      break;
-
-    case GDK_Left:
-      dwKeyPad1 &= ~( 1 << 6 );
-      break;
-
-    case GDK_Down:
-      dwKeyPad1 &= ~( 1 << 5 );
-      break;
-      
-    case GDK_Up:
-      dwKeyPad1 &= ~( 1 << 4 );
-      break;
-
-    case 's':
-    case 'S':
-      /* Start */
-      dwKeyPad1 &= ~( 1 << 3 );
-      break;
-
-    case 'a':
-    case 'A':
-      /* Select */
-      dwKeyPad1 &= ~( 1 << 2 );
-      break;
-
-    case 'z':
-    case 'Z': 
-      /* 'A' */
-      dwKeyPad1 &= ~( 1 << 1 );
-      break;
-
-    case 'x': 
-    case 'X': 
-      /* 'B' */
-      dwKeyPad1 &= ~( 1 << 0 );
-      break;
-
-#if 0
-    case 'q':
-    case 'Q':
-      /* Terminate emulation thread */
-      dwKeySystem &= ~( PAD_SYS_QUIT );
-      break;
-#endif
-
-    defalut:  
-      break;
-  }
-}
-
-/*===================================================================*/
-/*                                                                   */
-/*     start_application() : Start NES Hardware                      */
-/*                                                                   */
-/*===================================================================*/
-void start_application( char *filename )
-{
-  /* Set a ROM image name */
-  strcpy( szRomName, filename );
-
-  /* Load cassette */
-  if ( InfoNES_Load ( szRomName ) == 0 )
-  { 
-    /* Get a drawable and graphic context */
-    drawable=draw_area->window;
-    gc=gdk_gc_new(drawable);
-
-    /* Load SRAM */
-    LoadSRAM();
-
-    /* Create Emulation Thread */
-    bThread = TRUE;
-    pthread_create( &emulation_tid, NULL, emulation_thread, NULL );
-  }
-}
-
-/* Wrapper function for GTK file selection */
-gint start_application_aux( GtkObject *gfs )
-{
-  /* Call actual function */
-  start_application( gtk_file_selection_get_filename( GTK_FILE_SELECTION( gfs ) ) );
-
-  /* Destroy a file selection widget */
-  gtk_widget_destroy( GTK_WIDGET( gfs ) );
-}
-
-/*===================================================================*/
-/*                                                                   */
-/*     close_application() : When invoked via signal delete_event    */
-/*                                                                   */
-/*===================================================================*/
-gint close_application( GtkWidget *widget, GdkEvent *event, gpointer data )
-{
-  if ( bThread == TRUE )
-  {
-    /* Terminate emulation thread */
-    bThread = FALSE;
-    dwKeySystem |= PAD_SYS_QUIT; 
-
-    /* Leave Critical Section */
-    gdk_threads_leave();
-
-    /* Waiting for Termination */
-    pthread_join( emulation_tid, NULL );
-  
-    /* Enter Critical Section */
-    gdk_threads_enter();
-    
-    /* Save SRAM*/
-    SaveSRAM();
-
-    /* Release GC*/
-    gdk_gc_destroy(gc);
-  }
-
-  /* Terminates the application */
-  gtk_main_quit();
-
-  return( FALSE );
-}
-
-/*===================================================================*/
-/*                                                                   */
-/*     reset_application() : Reset NES Hardware                      */
-/*                                                                   */
-/*===================================================================*/
-void reset_application( void )
-{
-  /* Do nothing if emulation thread does not exists */
-  if ( bThread == TRUE )
-  {
-    /* Terminate emulation thread */
-    bThread = FALSE;
-    dwKeySystem |= PAD_SYS_QUIT; 
-
-    /* Leave Critical Section */
-    gdk_threads_leave();
-
-    /* Waiting for Termination */
-    pthread_join( emulation_tid, NULL );
-  
-    /* Enter Critical Section */
-    gdk_threads_enter();
-
-    /* Save SRAM File */
-    SaveSRAM();
-
-    /* Load cassette */
-    if ( InfoNES_Load ( szRomName ) == 0 )
-    { 
-      /* Load SRAM */
-      LoadSRAM();
-
-      /* Create Emulation Thread */
-      bThread = TRUE;
-      pthread_create( &emulation_tid, NULL, emulation_thread, NULL );
-    }
-  }
 }
 
 /*===================================================================*/
@@ -714,13 +392,10 @@ int InfoNES_Menu()
  *    -1 : Exit InfoNES
  */
 
-  /* If terminated */
-  if ( bThread == FALSE )
-  {
-    return -1;
-  }
+  if ( PAD_PUSH( PAD_System, PAD_SYS_QUIT) )
+    return -1;	 	
 
-  /* Nothing to do here */
+  // Nothing to do here
   return 0;
 }
 
@@ -816,6 +491,52 @@ void InfoNES_ReleaseRom()
 
 /*===================================================================*/
 /*                                                                   */
+/*      InfoNES_LoadFrame() :                                        */
+/*           Transfer the contents of work frame on the screen       */
+/*                                                                   */
+/*===================================================================*/
+void InfoNES_LoadFrame()
+{
+/*
+ *  Transfer the contents of work frame on the screen
+ *
+ */
+#if 0
+  zi->repaint();
+#else
+  zi->loadFrame();
+#endif
+}
+
+/*===================================================================*/
+/*                                                                   */
+/*             InfoNES_PadState() : Get a joypad state               */
+/*                                                                   */
+/*===================================================================*/
+void InfoNES_PadState( DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSystem )
+{
+/*
+ *  Get a joypad state
+ *
+ *  Parameters
+ *    DWORD *pdwPad1                   (Write)
+ *      Joypad 1 State
+ *
+ *    DWORD *pdwPad2                   (Write)
+ *      Joypad 2 State
+ *
+ *    DWORD *pdwSystem                 (Write)
+ *      Input for InfoNES
+ *
+ */
+
+  *pdwPad1   = zi->dwKeyPad1;	
+  *pdwPad2   = zi->dwKeyPad2;	
+  *pdwSystem = zi->dwKeySystem;	
+}
+
+/*===================================================================*/
+/*                                                                   */
 /*             InfoNES_MemoryCopy() : memcpy                         */
 /*                                                                   */
 /*===================================================================*/
@@ -868,75 +589,6 @@ void *InfoNES_MemorySet( void *dest, int c, int count )
 
   memset( dest, c, count);  
   return dest;
-}
-
-/*===================================================================*/
-/*                                                                   */
-/*      InfoNES_LoadFrame() :                                        */
-/*           Transfer the contents of work frame on the screen       */
-/*                                                                   */
-/*===================================================================*/
-void InfoNES_LoadFrame()
-{
-/*
- *  Transfer the contents of work frame on the screen
- *
- */
-  guchar  pbyRgbBuf[ NES_DISP_WIDTH * NES_DISP_HEIGHT * 3 ];
-  register guchar* pBuf;
-
-  /* Enter Critical Section */
-  gdk_threads_enter();
-
-  pBuf = pbyRgbBuf;
-
-  /* Exchange 16-bit to 24-bit  */
-  for ( register int y = 0; y < NES_DISP_HEIGHT; y++ )
-  {
-    for ( register int x = 0; x < NES_DISP_WIDTH; x++ )
-    {  
-      WORD wColor = WorkFrame[ ( y << 8 ) + x ];
-	  
-      *(pBuf++) = (guchar)( ( wColor & 0x7c00 ) >> 7 );
-      *(pBuf++) = (guchar)( ( wColor & 0x03e0 ) >> 2 );
-      *(pBuf++) = (guchar)( ( wColor & 0x001f ) << 3 );
-    }
-  }
-
-  /* Blit screen */
-  gdk_draw_rgb_image( drawable, gc, 0, 0, NES_DISP_WIDTH, NES_DISP_HEIGHT,               
-		      GDK_RGB_DITHER_NONE, pbyRgbBuf, NES_DISP_WIDTH * 3 );
-
-  /* Leave Critical Section */
-  gdk_threads_leave();
-}
-
-/*===================================================================*/
-/*                                                                   */
-/*             InfoNES_PadState() : Get a joypad state               */
-/*                                                                   */
-/*===================================================================*/
-void InfoNES_PadState( DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSystem )
-{
-/*
- *  Get a joypad state
- *
- *  Parameters
- *    DWORD *pdwPad1                   (Write)
- *      Joypad 1 State
- *
- *    DWORD *pdwPad2                   (Write)
- *      Joypad 2 State
- *
- *    DWORD *pdwSystem                 (Write)
- *      Input for InfoNES
- *
- */
-
-  /* Transfer joypad state */
-  *pdwPad1   = dwKeyPad1;
-  *pdwPad2   = dwKeyPad2;
-  *pdwSystem = dwKeySystem;
 }
 
 /*===================================================================*/
@@ -1063,7 +715,6 @@ void InfoNES_SoundOutput( int samples, BYTE *wave1, BYTE *wave2, BYTE *wave3, BY
       final_wave[ waveptr ] = wave4[i];
 #endif
 
-
       waveptr++;
       if ( waveptr == 2048 ) 
       {
@@ -1101,58 +752,8 @@ void InfoNES_Wait() {}
 /*===================================================================*/
 void InfoNES_MessageBox( char *pszMsg, ... )
 {
-  char pszErr[ 1024 ];
-  va_list args;
-
-  static GtkWidget *label;
-  GtkWidget *button;
-  GtkWidget *dialog_window;
-
-  // Create the message body
-  va_start( args, pszMsg );
-  vsprintf( pszErr, pszMsg, args );  pszErr[ 1023 ] = '\0';
-  va_end( args );
-
-#if 0
-  // Only for debug
-  g_print( pszErr );
-#else
-  // Create a dialog window
-  dialog_window = gtk_dialog_new();
-  gtk_signal_connect( GTK_OBJECT( dialog_window ), "destroy", 
-		      GTK_SIGNAL_FUNC( closing_dialog ), &dialog_window );
-  gtk_window_set_title( GTK_WINDOW( dialog_window ), VERSION );
-  gtk_container_border_width( GTK_CONTAINER( dialog_window ), 5 );
-
-  // Create a label
-  label = gtk_label_new( pszErr );
-  gtk_misc_set_padding( GTK_MISC( label ), 10, 10 );
-  gtk_box_pack_start( GTK_BOX( GTK_DIALOG( dialog_window )->vbox ), label, TRUE, TRUE, 0 );
-  gtk_widget_show( label );
-
-  // Create a OK button
-  button = gtk_button_new_with_label( "OK" );
-  gtk_signal_connect( GTK_OBJECT( button ), "clicked", GTK_SIGNAL_FUNC( close_dialog ), dialog_window );
-  GTK_WIDGET_SET_FLAGS( button, GTK_CAN_DEFAULT);
-  gtk_box_pack_start( GTK_BOX( GTK_DIALOG( dialog_window )->action_area ), button, TRUE, TRUE, 0 );
-
-  gtk_widget_grab_default( button );
-  gtk_widget_show( button );
-  gtk_widget_show( dialog_window );
-  gtk_grab_add( dialog_window );
-#endif
+    va_list args;
+    va_start( args, pszMsg );
+    printf( pszMsg, args );	
+    va_end( args );
 }
-
-void close_dialog( GtkWidget *widget, gpointer data )
-{
-  gtk_widget_destroy( GTK_WIDGET( data ) );
-}
-
-void closing_dialog( GtkWidget *widget, gpointer data )
-{
-  gtk_grab_remove( GTK_WIDGET( widget ) );
-}
-
-/*
- * End of InfoNES_System_Linux.cpp
- */

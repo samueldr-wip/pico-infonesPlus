@@ -1,5 +1,5 @@
 CC = gcc
-TARBALL = InfoNES08J
+TARBALL = InfoNES094J
 
 # InfoNES
 .CFILES =	./../K6502.cpp \
@@ -10,13 +10,18 @@ TARBALL = InfoNES08J
 
 .OFILES	=	$(.CFILES:.cpp=.o)
 
-CCFLAGS = `gtk-config --cflags` -O2
+CCFLAGS = `gtk-config --cflags` -O6
+CCFLAGS_NOOPT = `gtk-config --cflags` -O0
 LDFILGS = `gtk-config --libs gthread` -lstdc++		# gcc3.x.x
 
 all: InfoNES
 
 InfoNES: $(.OFILES)
 	$(CC) $(INCLUDES) -o $@ $(.OFILES) $(LDFILGS) -lm -lz
+
+# To avoid the gcc optimization bug
+./../InfoNES_pAPU.o: ./../InfoNES_pAPU.cpp
+	$(CC) $(INCLUDES) -c $(CCFLAGS_NOOPT) ./../InfoNES_pAPU.cpp -o ./../InfoNES_pAPU.o 
 
 .cpp.o:
 	$(CC) $(INCLUDES) -c $(CCFLAGS) $*.cpp  -o $@
@@ -37,3 +42,5 @@ tar:
 
 install:
 	install ./InfoNES /usr/local/bin
+
+# End of Makefile
