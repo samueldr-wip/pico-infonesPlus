@@ -82,8 +82,8 @@ BEGIN
             POPUP "»²½Þ(&S)"
             BEGIN
                 MENUITEM "1”{(&1)",                     IDC_BTN_SINGLE
-                , CHECKED
                 MENUITEM "2”{(&2)",                     IDC_BTN_DOUBLE
+                , CHECKED
                 MENUITEM "3”{(&3)",                     IDC_BTN_TRIPLE
             END
             POPUP "¸Ø¯Ìß(&C)"

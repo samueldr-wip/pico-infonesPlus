@@ -42,7 +42,7 @@ int nSRAM_SaveFlag;
 
 #define VBOX_SIZE    7 
 #define SOUND_DEVICE "/dev/dsp"
-#define VERSION      "InfoNES v0.9J"
+#define VERSION      "InfoNES v0.91J"
 
 /*-------------------------------------------------------------------*/
 /*  Global Variables ( Linux specific )                              */

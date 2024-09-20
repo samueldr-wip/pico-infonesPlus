@@ -34,7 +34,7 @@ int nSRAM_SaveFlag;
 /*-------------------------------------------------------------------*/
 /*  Variables for Windows                                            */
 /*-------------------------------------------------------------------*/
-#define APP_NAME     "InfoNES v0.9J"
+#define APP_NAME     "InfoNES v0.91J"
  
 HWND hWndMain;
 WNDCLASS wc;
@@ -59,7 +59,7 @@ WORD NesPalette[ 64 ] =
 };
 
 // Screen Size Magnification
-WORD wScreenMagnification = 1;
+WORD wScreenMagnification = 2;
 #define NES_MENU_HEIGHT     46
 
 /*-------------------------------------------------------------------*/
@@ -98,11 +98,15 @@ DIRSOUND* lpSndDevice;
 /*-------------------------------------------------------------------*/
 
 LRESULT CALLBACK MainWndproc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam );
+#if 0
 LRESULT CALLBACK AboutDlgProc( HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam );
+#endif
 void ShowTitle( HWND hWnd );
 void SetWindowSize( WORD wMag );
 int LoadSRAM();
 int SaveSRAM();
+int CreateScreen( HWND hWnd );
+void DestroyScreen();
 static void InfoNES_StartTimer(); 
 static void InfoNES_StopTimer();
 static void CALLBACK TimerFunc( UINT nID, UINT uMsg, DWORD dwUser, DWORD dw1, DWORD dw2);
@@ -137,8 +141,8 @@ int WINAPI WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLin
                              WS_VISIBLE | WS_POPUP | WS_OVERLAPPEDWINDOW,
                              200,
                              120,
-                             NES_DISP_WIDTH,
-                             NES_DISP_HEIGHT + NES_MENU_HEIGHT,
+                             NES_DISP_WIDTH * wScreenMagnification,
+                             NES_DISP_HEIGHT * wScreenMagnification + NES_MENU_HEIGHT,
                              NULL,
                              NULL,
                              hInstance,
@@ -165,67 +169,23 @@ int WINAPI WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLin
 #endif
 
   /*-------------------------------------------------------------------*/
-  /*  Create a InfoNES screen                                          */
-  /*-------------------------------------------------------------------*/
-
-  HDC hDC = GetDC( hWndMain );
-
-  BITMAPINFOHEADER bi;
-
-  bi.biSize = sizeof( BITMAPINFOHEADER );
-  bi.biWidth = NES_DISP_WIDTH;
-  bi.biHeight = NES_DISP_HEIGHT * -1;
-  bi.biPlanes = 1;
-  bi.biBitCount = 16;
-  bi.biCompression = BI_RGB;
-  bi.biSizeImage = NES_DISP_WIDTH * NES_DISP_HEIGHT * 2;
-  bi.biXPelsPerMeter = 0;
-  bi.biYPelsPerMeter = 0;
-  bi.biClrUsed = 0;
-  bi.biClrImportant = 0;
-
-  hScreenBmp = CreateDIBSection( hDC, 
-                                 (BITMAPINFO *)&bi,
-                                 DIB_RGB_COLORS, 
-                                 (void **)&pScreenMem, 
-                                 0,
-                                 0 ); 
-  if ( !hScreenBmp )
-    return -1;
-
-  ReleaseDC( hWndMain, hDC );
-
-  /*-------------------------------------------------------------------*/
-  /*  Show Title Screen                                                */
-  /*-------------------------------------------------------------------*/
-  ShowTitle( hWndMain );
-
-  /*-------------------------------------------------------------------*/
-  /*  Get Wait Value                                                   */
+  /*  Init Resources                                                   */
   /*-------------------------------------------------------------------*/
   InfoNES_StartTimer();
+  CreateScreen( hWndMain );
+  ShowTitle( hWndMain );
 
   /*-------------------------------------------------------------------*/
   /*  For Drag and Drop Function                                       */
   /*-------------------------------------------------------------------*/
   if ( lpCmdLine[ 0 ] != '\0' )
   {
-#if 0
-    // Debug Message
-    MessageBox( hWndMain, TEXT( lpCmdLine ), TEXT( "file name:" ), MB_OK );
-#endif
-
     // If included space characters, strip dobule quote marks
     if ( lpCmdLine[ 0 ] == '"' )
     {
       lpCmdLine[ strlen( lpCmdLine ) - 1 ] = '\0';
       lpCmdLine++;
     }
-
-#if 0
-    // Debug Message
-    MessageBox( hWndMain, TEXT( lpCmdLine ), TEXT( "file name:" ), MB_OK );
-#endif
 
     // Load cassette
     if ( InfoNES_Load( lpCmdLine ) == 0 )
@@ -267,6 +227,17 @@ int WINAPI WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLin
       WaitMessage();
 		}
   }
+
+  /*-------------------------------------------------------------------*/
+  /*  Release Resources                                                */
+  /*-------------------------------------------------------------------*/
+  if (NULL != m_hThread) {
+    // Terminate Emulation Thread
+	  TerminateThread(m_hThread, (DWORD)0);  m_hThread=NULL;
+		SaveSRAM();
+    InfoNES_Fin();
+  }
+  DestroyScreen();
   InfoNES_StopTimer();
   return 0;
 }
@@ -345,8 +316,7 @@ LRESULT CALLBACK MainWndproc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
 
 							// Create Emulation Thread
 							m_hThread=CreateThread((LPSECURITY_ATTRIBUTES)NULL, (DWORD)0,
-								(LPTHREAD_START_ROUTINE)InfoNES_Main, (LPVOID)NULL,
-									(DWORD)0, &m_ThreadID);
+								(LPTHREAD_START_ROUTINE)InfoNES_Main, (LPVOID)NULL, (DWORD)0, &m_ThreadID);
             }
           }
           break;
@@ -356,47 +326,48 @@ LRESULT CALLBACK MainWndproc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
           /*  Stop button                                                      */
           /*-------------------------------------------------------------------*/
 
-					// Terminate Emulation Thread
 					if (NULL != m_hThread)
 					{
-						TerminateThread(m_hThread, (DWORD)0);
-						m_hThread=NULL;
-            // Save SRAM File
+					  // Terminate Emulation Thread
+						TerminateThread(m_hThread, (DWORD)0);  m_hThread=NULL;
 					  SaveSRAM();
-            // Finalize
             InfoNES_Fin();
-					}
+            InfoNES_StopTimer();
+            DestroyScreen();
+
+            // Preperations
+            CreateScreen( hWndMain );
+            InfoNES_StartTimer();
+          } 
           // Show Title Screen
           ShowTitle( hWnd );
-					break;
+          break;
 
         case IDC_BTN_RESET:
           /*-------------------------------------------------------------------*/
           /*  Reset button                                                     */
           /*-------------------------------------------------------------------*/
  
-          // Show Title Screen
-          ShowTitle( hWnd );
 					// Do nothing if emulation thread does not exists
 					if (NULL != m_hThread)
 					{
             // Terminate Emulation Thread
-						TerminateThread(m_hThread, (DWORD)0);
-						m_hThread=NULL;
-            // Stop timer
-            InfoNES_StopTimer();
-						// Save SRAM File
+						TerminateThread(m_hThread, (DWORD)0);  m_hThread=NULL;
 						SaveSRAM();
-            // Finalize pAPU
-            InfoNES_pAPUDone();
-						// Reset InfoNES
-            InfoNES_Reset();
+            InfoNES_Fin();
+            InfoNES_StopTimer();
+            DestroyScreen();
+
             // Create Emulation Thread
-						m_hThread=CreateThread((LPSECURITY_ATTRIBUTES)NULL, (DWORD)0,
-							(LPTHREAD_START_ROUTINE)InfoNES_Main, (LPVOID)NULL,
-								(DWORD)0, &m_ThreadID);
-            // Restart timer
+            CreateScreen( hWndMain );
             InfoNES_StartTimer();
+            InfoNES_Load( szRomName );
+            LoadSRAM();
+						m_hThread=CreateThread((LPSECURITY_ATTRIBUTES)NULL, (DWORD)0,
+							(LPTHREAD_START_ROUTINE)InfoNES_Main, (LPVOID)NULL, (DWORD)0, &m_ThreadID);
+          } else {
+            // Show Title Screen
+            ShowTitle( hWnd );
           }
           break;
         
@@ -404,15 +375,14 @@ LRESULT CALLBACK MainWndproc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
           /*-------------------------------------------------------------------*/
           /*  Exit button                                                      */
           /*-------------------------------------------------------------------*/
-
-					// Terminate Emulation Thread
 					if (NULL != m_hThread)
           {
-						TerminateThread(m_hThread, (DWORD)0);					
-            // Save SRAM File
+            // Terminate Emulation Thread
+						TerminateThread(m_hThread, (DWORD)0);  m_hThread=NULL;
 					  SaveSRAM();
-            // Finalize
             InfoNES_Fin();
+            InfoNES_StopTimer();   
+            DestroyScreen();
           }
 					// Received key/menu command to exit app
           PostMessage(hWnd, WM_CLOSE, 0, 0);
@@ -571,6 +541,7 @@ LRESULT CALLBACK MainWndproc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
   return 0;
 }
 
+#if 0
 /*===================================================================*/
 /*                                                                   */
 /*           AboutDlgProc() : The About Dialog Box Procedure         */
@@ -593,6 +564,7 @@ LRESULT CALLBACK AboutDlgProc( HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
     }
     return FALSE;
 }
+#endif
 
 /*===================================================================*/
 /*                                                                   */
@@ -618,6 +590,53 @@ void ShowTitle( HWND hWnd )
   ReleaseDC( hWnd, hDC );
 }
 
+/*===================================================================*/
+/*                                                                   */
+/*            CreateScreen() : Create InfoNES screen                 */
+/*                                                                   */
+/*===================================================================*/
+int CreateScreen( HWND hWnd )
+{
+  /*-------------------------------------------------------------------*/
+  /*  Create a InfoNES screen                                          */
+  /*-------------------------------------------------------------------*/
+  HDC hDC = GetDC( hWnd );
+
+  BITMAPINFOHEADER bi;
+
+  bi.biSize = sizeof( BITMAPINFOHEADER );
+  bi.biWidth = NES_DISP_WIDTH;
+  bi.biHeight = NES_DISP_HEIGHT * -1;
+  bi.biPlanes = 1;
+  bi.biBitCount = 16;
+  bi.biCompression = BI_RGB;
+  bi.biSizeImage = NES_DISP_WIDTH * NES_DISP_HEIGHT * 2;
+  bi.biXPelsPerMeter = 0;
+  bi.biYPelsPerMeter = 0;
+  bi.biClrUsed = 0;
+  bi.biClrImportant = 0;
+
+  hScreenBmp = CreateDIBSection( hDC, 
+                                 (BITMAPINFO *)&bi,
+                                 DIB_RGB_COLORS, 
+                                 (void **)&pScreenMem, 
+                                 0,
+                                 0 ); 
+  ReleaseDC( hWnd, hDC );
+
+  if ( !hScreenBmp ) { return -1; } 
+  else {  return 0; }
+}
+
+/*===================================================================*/
+/*                                                                   */
+/*          DestroyScreen() : Destroy InfoNES screen                 */
+/*                                                                   */
+/*===================================================================*/
+void DestroyScreen()
+{
+  if ( !hScreenBmp ) { DeleteObject( hScreenBmp ); }
+}
 
 /*===================================================================*/
 /*                                                                   */
