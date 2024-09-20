@@ -190,6 +190,9 @@ BYTE PPU_MirrorTable[][ 4 ] =
 /* APU Register */
 BYTE APU_Reg[ 0x18 ];
 
+/* APU Mute ( 0:OFF, 1:ON ) */
+int APU_Mute = 0;
+
 /* Pad data */
 DWORD PAD1_Latch;
 DWORD PAD2_Latch;
@@ -716,7 +719,8 @@ int InfoNES_HSync()
       PPU_Latch_Flag = 0;
 
       // pAPU Sound function in V-Sync
-      InfoNES_pAPUVsync();
+      if ( !APU_Mute )
+        InfoNES_pAPUVsync();
 
       // A mapper function in V-Sync
       MapperVSync();

@@ -16,11 +16,11 @@
 #include <stdio.h>
 #include <crtdbg.h>
 
-#include "InfoNES.h"
-#include "InfoNES_System.h"
+#include "../InfoNES.h"
+#include "../InfoNES_System.h"
 #include "InfoNES_Resource_Win.h"
 #include "InfoNES_Sound_Win.h"
-#include "InfoNES_pAPU.h"
+#include "../InfoNES_pAPU.h"
 
 /*-------------------------------------------------------------------*/
 /*  ROM image file information                                       */
@@ -33,7 +33,7 @@ int nSRAM_SaveFlag;
 /*-------------------------------------------------------------------*/
 /*  Variables for Windows                                            */
 /*-------------------------------------------------------------------*/
-#define APP_NAME     "InfoNES v0.78J"
+#define APP_NAME     "InfoNES v0.79J"
  
 HWND hWndMain;
 WNDCLASS wc;
@@ -498,6 +498,27 @@ LRESULT CALLBACK MainWndproc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
             CheckMenuItem( GetMenu( hWndMain ), IDC_BTN_FRAMESKIP, MF_CHECKED );
           } else {
             CheckMenuItem( GetMenu( hWndMain ), IDC_BTN_FRAMESKIP, MF_UNCHECKED );          
+          }                      
+          break;
+
+				case IDC_BTN_MUTE:
+					/*-------------------------------------------------------------------*/
+          /*  APU Mute button                                                  */
+          /*-------------------------------------------------------------------*/
+          APU_Mute = ( APU_Mute ? 0 : 1 );
+
+          if (!lpSndDevice->SoundMute( APU_Mute ) )
+          {
+            InfoNES_MessageBox( "SoundMute() Failed." );
+            exit(0);
+          }
+
+          // Check or Uncheck it
+          if ( APU_Mute )
+          {
+            CheckMenuItem( GetMenu( hWndMain ), IDC_BTN_MUTE, MF_CHECKED );
+          } else {
+            CheckMenuItem( GetMenu( hWndMain ), IDC_BTN_MUTE, MF_UNCHECKED );          
           }                      
           break;
 
@@ -1052,6 +1073,16 @@ int InfoNES_SoundOpen( int samples_per_sync, int sample_rate )
     exit(0);
   }
 
+  // if sound mute, stop sound
+  if ( APU_Mute )
+  {
+    if (!lpSndDevice->SoundMute( APU_Mute ) )
+    {
+      InfoNES_MessageBox( "SoundMute() Failed." );
+      exit(0);
+    }
+  }
+
   return(TRUE);
 }
 
@@ -1077,7 +1108,6 @@ void InfoNES_SoundOutput4( int samples, BYTE *wave1, BYTE *wave2, BYTE *wave3, B
   
   for ( int i = 0; i < rec_freq; i++)
   {
-
     wave[i] = ( wave1[i] + wave2[i] + wave3[i] + wave4[i] ) >> 2;
   }
 #if 1
@@ -1171,7 +1201,7 @@ void InfoNES_Wait()
       // Increment Frameskip Counter
 	    FrameSkip++;
     } 
-#if 0
+#if 1
     else {
       // Decrement Frameskip Counter
       if ( FrameSkip > 2 )
@@ -1183,8 +1213,11 @@ void InfoNES_Wait()
   }
 
   // Wait if bWaitFlag is TRUE
-  while ( bWaitFlag )
-    Sleep(0);
+  if ( bAutoFrameskip )
+  {
+    while ( bWaitFlag )
+      Sleep(0);
+  }
 
   // set bWaitFlag is TRUE
   EnterCriticalSection( &WaitFlagCriticalSection );

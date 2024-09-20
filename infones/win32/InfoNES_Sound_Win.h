@@ -15,7 +15,7 @@
 
 #include <mmsystem.h>
 #include "dsound.h"
-#include "InfoNES_pAPU.h"
+#include "../InfoNES_pAPU.h"
 
 /*-------------------------------------------------------------------*/
 /*  Constants for DirectSound                                        */
@@ -24,7 +24,7 @@
 #define ds_NUMCHANNELS      8
 #define ds_CHANSPERSAMPLE   1
 #define ds_BITSPERSAMPLE	  8
-#define Loops               60
+#define Loops               20
 
 #if ( pAPU_QUALITY > 1 ) 
 #define ds_SAMPLERATE 		  44100
@@ -52,6 +52,7 @@ class DIRSOUND
     BOOL SoundOutput( int samples, BYTE* wave );
 		void SoundClose( void );
 		BOOL SoundOpen( int samples_per_sync, int sample_rate );
+    BOOL SoundMute( BOOL flag );
 
     /*-------------------------------------------------------------------*/
     /*  Global Functions                                                 */

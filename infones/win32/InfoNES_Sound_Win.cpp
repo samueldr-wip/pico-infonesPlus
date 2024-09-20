@@ -14,7 +14,7 @@
 #include <mmsystem.h>
 #include "dsound.h"
 #include "InfoNES_Sound_Win.h"
-#include "InfoNES_System.h"
+#include "../InfoNES_System.h"
 
 /*-------------------------------------------------------------------*/
 /*  Constructor                                                      */
@@ -24,11 +24,15 @@ DIRSOUND::DIRSOUND(HWND hwnd)
 	DWORD ret;
 	WORD x;
 
+  // init variables
+  iCnt = Loops * 3 / 4;
+
 	for ( x = 0;x < ds_NUMCHANNELS; x++ )
 	{
 		lpdsb[x] = NULL;
 	}
 
+  // init DirectSound
 	ret = DirectSoundCreate(NULL, &lpdirsnd, NULL);
 
 	if (ret != DS_OK)
@@ -36,6 +40,8 @@ DIRSOUND::DIRSOUND(HWND hwnd)
     InfoNES_MessageBox( "Sound Card is needed to execute this application." );
 		exit(-1);
 	}
+
+  // set cooperative level
 #if 1
   ret = lpdirsnd->SetCooperativeLevel(hwnd, DSSCL_PRIORITY);
 #else
@@ -82,15 +88,15 @@ void DIRSOUND::FillBuffer( WORD channel )
 	DWORD length2;
 	HRESULT hr;
 
-  hr = lpdsb[channel]->Lock(iCnt * len[channel], len[channel], 
-    &write1, &length1, &write2, &length2, 0);
+  hr = lpdsb[channel]->Lock( iCnt * len[channel], len[channel], 
+    &write1, &length1, &write2, &length2, 0 );
 
 	if (hr == DSERR_BUFFERLOST)
 	{
 		lpdsb[channel]->Restore();
 
-		hr = lpdsb[channel]->Lock(iCnt * len[channel], len[channel], 
-      &write1, &length1, &write2, &length2, 0);
+		hr = lpdsb[channel]->Lock( iCnt * len[channel], len[channel], 
+      &write1, &length1, &write2, &length2, 0 );
 	}
 
 	if (hr != DS_OK)
@@ -197,9 +203,9 @@ void DIRSOUND::Start(WORD channel, BOOL looping)
 {
 	HRESULT hr;
 
-	hr = lpdsb[channel]->Play(0, 0, looping == TRUE ? DSBPLAY_LOOPING : 0);
+	hr = lpdsb[channel]->Play( 0, 0, looping == TRUE ? DSBPLAY_LOOPING : 0 );
 
-	if (hr != DS_OK)
+	if ( hr != DS_OK )
 	{
     InfoNES_MessageBox( "Play() Failed." );
 		exit(-1);
@@ -221,14 +227,14 @@ void DIRSOUND::UnLoadWave(WORD channel)
 {
 	DestroyBuffer(channel);
 
-	if (sound[channel] != NULL)
+	if ( sound[channel] != NULL )
 	{
 		delete sound[channel];
 	}
 }
 
 /*-------------------------------------------------------------------*/
-/*  SoundOpen() : Sound Emulation Open Devices                       */
+/*  SoundOpen() : Open Devices for Sound Emulation                   */
 /*-------------------------------------------------------------------*/
 BOOL DIRSOUND::SoundOpen(int samples_per_sync, int sample_rate)
 {
@@ -237,15 +243,17 @@ BOOL DIRSOUND::SoundOpen(int samples_per_sync, int sample_rate)
 	sound[ch1] = new BYTE[ samples_per_sync ];
 	len[ch1]	 = samples_per_sync;
 
-	if (sound[ch1] == NULL)
+	if ( sound[ch1] == NULL )
 	{
     InfoNES_MessageBox( "new BYTE[] Failed." );
 		exit(-1);
 	}
-  CreateBuffer(ch1);
+  CreateBuffer( ch1 );
 
-  /* Prepare to play sound */
-  iCnt					= Loops * 3 / 4;
+  /* Clear buffer */
+  FillMemory( sound[ch1], len[ch1], 0 ); 
+  for ( int i = 0; i < Loops; i++ )
+    SoundOutput( len[ch1], sound[ch1] ); 
 
   /* Begin to play sound */
   Start( ch1, TRUE );
@@ -254,7 +262,7 @@ BOOL DIRSOUND::SoundOpen(int samples_per_sync, int sample_rate)
 }
 
 /*-------------------------------------------------------------------*/
-/*  SoundClose() : Sound Emulation Close Devices                     */
+/*  SoundClose() : Close Devices for Sound Emulation                 */
 /*-------------------------------------------------------------------*/
 void DIRSOUND::SoundClose( void )
 {
@@ -265,7 +273,7 @@ void DIRSOUND::SoundClose( void )
 }
 
 /*-------------------------------------------------------------------*/
-/*  SoundOutput() : Sound Emulation Output Sound to Device           */
+/*  SoundOutput() : Output Sound to Device for Sound Emulation       */
 /*-------------------------------------------------------------------*/
 BOOL DIRSOUND::SoundOutput(int samples, BYTE *wave)
 {
@@ -280,7 +288,30 @@ BOOL DIRSOUND::SoundOutput(int samples, BYTE *wave)
   {
     iCnt = 0;
   }
+  return TRUE;
+}
 
+/*-------------------------------------------------------------------*/
+/*  SoundMute() : Sound Mute for Sound Emulation                     */
+/*-------------------------------------------------------------------*/
+BOOL DIRSOUND::SoundMute( BOOL flag )
+{
+  if ( flag )
+  {
+    /* Mute on : Stop to play sound */
+    Stop( ch1 );
+  } 
+  else 
+  {
+    /* Clear buffer */
+    FillMemory( sound[ch1], len[ch1], 0 ); 
+    for ( int i = 0; i < Loops; i++ )
+      SoundOutput( len[ch1], sound[ch1] );
+
+    /* Mute off : Begin to play sound */    
+    iCnt = Loops * 3 / 4;
+    Start( ch1, TRUE );
+  }
   return TRUE;
 }
 

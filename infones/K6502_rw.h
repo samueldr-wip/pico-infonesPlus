@@ -308,8 +308,9 @@ static inline void K6502_Write( WORD wAddr, BYTE byData )
             else
             if ( addr < 0x3f00 )  /* 0x2000 - 0x3eff */
             {
-              // Name Table
-              PPUBANK[ addr >> 10 ][ addr & 0x3ff ] = byData;
+              // Name Table and mirror
+              PPUBANK[   addr            >> 10 ][ addr & 0x3ff ] = byData;
+              PPUBANK[ ( addr ^ 0x1000 ) >> 10 ][ addr & 0x3ff ] = byData;
             }
             else
             if ( !( addr & 0xf ) )  /* 0x3f00 or 0x3f10 */
@@ -351,8 +352,9 @@ static inline void K6502_Write( WORD wAddr, BYTE byData )
         case 0x0d:
         case 0x0e:
         case 0x0f:
-          // Call Function corresponding to Sound Registers 
-          pAPUSoundRegs[ wAddr & 0x0f ]( wAddr, byData );
+          // Call Function corresponding to Sound Registers
+          if ( !APU_Mute )
+            pAPUSoundRegs[ wAddr & 0x0f ]( wAddr, byData );
           break;
 
         case 0x14:  /* 0x4014 */

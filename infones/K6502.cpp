@@ -597,11 +597,19 @@ void K6502_Step( WORD wClocks )
       case 0x58: // CLI
         byD0 = F;
         RSTF( FLAG_I ); CLK( 2 );
+#if 0
         if ( ( byD0 & FLAG_I ) && IRQ_State == 0 )
+#else
+        if ( ( byD0 & FLAG_I ) && IRQ_State != IRQ_Wiring )    
+#endif        
         {
           // IRQ Interrupt
           // Execute IRQ if an I flag isn't being set
+#if 0
           if ( !( F & FLAG_I ) )
+#else
+          if ( !( byD0 & FLAG_I ) )
+#endif          
           {
             CLK( 7 );
 

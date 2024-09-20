@@ -92,19 +92,15 @@ LINK32=link.exe
 # PROP Default_Filter "cpp;c;cxx;rc;def;r;odl;idl;hpj;bat"
 # Begin Source File
 
-SOURCE=.\InfoNES.cpp
+SOURCE=..\InfoNES.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\InfoNES_Mapper.cpp
+SOURCE=..\InfoNES_Mapper.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\InfoNES_pAPU.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=.\InfoNES_Resource_Win.rc
+SOURCE=..\InfoNES_pAPU.cpp
 # End Source File
 # Begin Source File
 
@@ -116,7 +112,7 @@ SOURCE=.\InfoNES_System_Win.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\K6502.cpp
+SOURCE=..\K6502.cpp
 # End Source File
 # End Group
 # Begin Group "Header Files"
@@ -124,15 +120,15 @@ SOURCE=.\K6502.cpp
 # PROP Default_Filter "h;hpp;hxx;hm;inl"
 # Begin Source File
 
-SOURCE=.\InfoNES.h
+SOURCE=..\InfoNES.h
 # End Source File
 # Begin Source File
 
-SOURCE=.\InfoNES_Mapper.h
+SOURCE=..\InfoNES_Mapper.h
 # End Source File
 # Begin Source File
 
-SOURCE=.\InfoNES_pAPU.h
+SOURCE=..\InfoNES_pAPU.h
 # End Source File
 # Begin Source File
 
@@ -144,19 +140,19 @@ SOURCE=.\InfoNES_Sound_Win.h
 # End Source File
 # Begin Source File
 
-SOURCE=.\InfoNES_System.h
+SOURCE=..\InfoNES_System.h
 # End Source File
 # Begin Source File
 
-SOURCE=.\InfoNES_Types.h
+SOURCE=..\InfoNES_Types.h
 # End Source File
 # Begin Source File
 
-SOURCE=.\K6502.h
+SOURCE=..\K6502.h
 # End Source File
 # Begin Source File
 
-SOURCE=.\K6502_rw.h
+SOURCE=..\K6502_rw.h
 # End Source File
 # End Group
 # Begin Group "Resource Files"
@@ -169,6 +165,10 @@ SOURCE=.\bitmap1.bmp
 # Begin Source File
 
 SOURCE=.\InfoNES.ico
+# End Source File
+# Begin Source File
+
+SOURCE=.\InfoNES_Resource_Win.rc
 # End Source File
 # End Group
 # End Target

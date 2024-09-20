@@ -207,6 +207,7 @@ extern WORD PalTable[];
 /*-------------------------------------------------------------------*/
 
 extern BYTE APU_Reg[];
+extern int APU_Mute;
 
 extern DWORD PAD1_Latch;
 extern DWORD PAD2_Latch;

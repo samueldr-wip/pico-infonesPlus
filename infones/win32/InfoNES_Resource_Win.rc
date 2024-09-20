@@ -60,42 +60,46 @@ END
 
 IDR_MENU MENU DISCARDABLE 
 BEGIN
-    POPUP "ファイル(&F)"
+    POPUP "ﾌｧｲﾙ(&F)"
     BEGIN
         MENUITEM "開く(&O)",                    IDC_BTN_OPEN
-        MENUITEM "リセット(&R)",                IDC_BTN_RESET
+        MENUITEM "ﾘｾｯﾄ(&R)",                    IDC_BTN_RESET
         MENUITEM "停止(&S)",                    IDC_BTN_STOP
         MENUITEM SEPARATOR
         MENUITEM "終了(&X)",                    IDC_BTN_EXIT
     END
-    POPUP "設定(&O)"
+    POPUP "ｵﾌﾟｼｮﾝ(&O)"
     BEGIN
-        POPUP "速度(&S)"
+        POPUP "ﾌﾚｰﾑｽｷｯﾌﾟ(&F)"
         BEGIN
-            MENUITEM "自動的に変更(&A)",            IDC_BTN_FRAMESKIP
+            MENUITEM "ｵｰﾄ(&A)",                     IDC_BTN_FRAMESKIP
             , CHECKED
-            MENUITEM "遅くする(&S)",                IDC_BTN_SLOW
-            MENUITEM "速くする(&F)",                IDC_BTN_FAST
+            MENUITEM "減らす(&D)",                  IDC_BTN_SLOW
+            MENUITEM "増やす(&I)",                  IDC_BTN_FAST
         END
         POPUP "画面(&V)"
         BEGIN
-            POPUP "サイズ(&S)"
+            POPUP "ｻｲｽﾞ(&S)"
             BEGIN
-                MENUITEM "通常(&1)",                    IDC_BTN_SINGLE
+                MENUITEM "1倍(&1)",                     IDC_BTN_SINGLE
                 , CHECKED
                 MENUITEM "2倍(&2)",                     IDC_BTN_DOUBLE
                 MENUITEM "3倍(&3)",                     IDC_BTN_TRIPLE
             END
-            POPUP "クリップ(&C)"
+            POPUP "ｸﾘｯﾌﾟ(&C)"
             BEGIN
                 MENUITEM "上端・下端(&V)",              IDC_BTN_CLIP_VERTICAL
                 , CHECKED
             END
         END
+        POPUP "ｻｳﾝﾄﾞ(&S)"
+        BEGIN
+            MENUITEM "ﾐｭｰﾄ(&M)",                    IDC_BTN_MUTE
+        END
     END
-    POPUP "ヘルプ(&H)"
+    POPUP "ﾍﾙﾌﾟ(&H)"
     BEGIN
-        MENUITEM "バージョン情報(&V)",          IDC_BTN_ABOUT
+        MENUITEM "ﾊﾞｰｼｮﾝ情報(&A)",              IDC_BTN_ABOUT
     END
 END
 
@@ -111,7 +115,7 @@ CAPTION "バージョン情報"
 FONT 9, "ＭＳ Ｐゴシック"
 BEGIN
     DEFPUSHBUTTON   "OK",IDOK,64,43,19,14
-    LTEXT           "InfoNES v0.78J\nCopyright (c) 1999-2002\nJay's Factory",
+    LTEXT           "InfoNES v0.79J\nCopyright (c) 1999-2002\nJay's Factory",
                     IDC_STATIC,12,14,75,25
     GROUPBOX        "",IDC_STATIC,4,1,87,63
 END

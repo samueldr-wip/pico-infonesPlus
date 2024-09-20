@@ -24,6 +24,7 @@
 #define IDC_BTN_TRIPLE                  40008
 #define IDC_BTN_CLIP_VERTICAL           40010
 #define IDC_BTN_FRAMESKIP               40011
+#define IDC_BTN_MUTE                    40012
 
 // Next default values for new objects
 // 
