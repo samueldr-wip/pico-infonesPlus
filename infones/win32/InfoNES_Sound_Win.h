@@ -26,12 +26,15 @@
 #define ds_BITSPERSAMPLE	  8
 #define Loops               20
 
-#if ( pAPU_QUALITY > 1 ) 
-#define ds_SAMPLERATE 		  44100
-#define rec_freq            735
-#else
+#if ( pAPU_QUALITY == 1 )
+#define ds_SAMPLERATE 		  11025
+#define rec_freq            183
+#elif ( pAPU_QUALITY == 2 )
 #define ds_SAMPLERATE 		  22050
 #define rec_freq            367
+#else
+#define ds_SAMPLERATE 		  44100
+#define rec_freq            735
 #endif
 
 /*-------------------------------------------------------------------*/

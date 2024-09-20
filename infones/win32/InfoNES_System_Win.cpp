@@ -34,7 +34,7 @@ int nSRAM_SaveFlag;
 /*-------------------------------------------------------------------*/
 /*  Variables for Windows                                            */
 /*-------------------------------------------------------------------*/
-#define APP_NAME     "InfoNES v0.92J"
+#define APP_NAME     "InfoNES v0.93J"
  
 HWND hWndMain;
 WNDCLASS wc;
@@ -59,7 +59,7 @@ WORD NesPalette[ 64 ] =
 };
 
 // Screen Size Magnification
-WORD wScreenMagnification = 2;
+WORD wScreenMagnification = 1;
 #define NES_MENU_HEIGHT     54
 #define NES_MENU_WIDTH			8
 
@@ -527,7 +527,7 @@ LRESULT CALLBACK MainWndproc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
             /* Version Infomation */
             char pszInfo[1024];
             sprintf( pszInfo, "%s\nA fast and portable NES emulator\n"
-			                        "Copyright (C) 1999-2003 Jay's Factory <jays_factory@excite.co.jp>",
+			                        "Copyright (C) 1999-2004 Jay's Factory <jays_factory@excite.co.jp>",
 			                        APP_NAME );
             MessageBox( hWndMain, pszInfo, APP_NAME, MB_OK | MB_ICONINFORMATION );   
           }

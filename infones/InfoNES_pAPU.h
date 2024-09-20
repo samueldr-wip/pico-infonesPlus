@@ -159,12 +159,13 @@ void InfoNES_pAPUVsync(void);
 
 /*-------------------------------------------------------------------*/
 /* ApuQuality is used to control the sound playback rate.            */
-/* 1 is 22050 Hz.                                                    */
-/* 2 is 44100 Hz.                                                    */
+/* 1 is 11015 Hz.                                                    */
+/* 2 is 22050 Hz.                                                    */
+/* 3 is 44100 Hz.                                                    */
 /* these values subject to change without notice.                    */
 /*-------------------------------------------------------------------*/
 extern int ApuQuality;
-#define pAPU_QUALITY 2
+#define pAPU_QUALITY 3
 
 /*-------------------------------------------------------------------*/
 /*  Rectangle Wave #1 resources                                      */
