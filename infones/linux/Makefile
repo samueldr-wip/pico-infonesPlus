@@ -22,10 +22,10 @@ InfoNES: $(.OFILES)
 	$(CC) $(INCLUDES) -c $(CCFLAGS) $*.cpp  -o $@
 
 clean:
-	rm -f $(.OFILES) *~ core
+	rm -f $(.OFILES) ../*~ ../*/*~ core
 
 cleanall:
-	rm -f $(.OFILES) *~ core InfoNES
+	rm -f $(.OFILES) ../*~ ../*/*~ core InfoNES
 
 release: clean all
 

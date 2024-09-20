@@ -174,17 +174,12 @@ WORD PalTable[ 32 ];
 /* Table for Mirroring */
 BYTE PPU_MirrorTable[][ 4 ] =
 {
-#if 1
   { NAME_TABLE0, NAME_TABLE0, NAME_TABLE1, NAME_TABLE1 },
   { NAME_TABLE0, NAME_TABLE1, NAME_TABLE0, NAME_TABLE1 },
   { NAME_TABLE1, NAME_TABLE1, NAME_TABLE1, NAME_TABLE1 },
-  { NAME_TABLE0, NAME_TABLE0, NAME_TABLE0, NAME_TABLE0 }
-#else
-  { NAME_TABLE0, NAME_TABLE0, NAME_TABLE1, NAME_TABLE1 },
-  { NAME_TABLE0, NAME_TABLE1, NAME_TABLE0, NAME_TABLE1 },
+  { NAME_TABLE0, NAME_TABLE0, NAME_TABLE0, NAME_TABLE0 },
   { NAME_TABLE0, NAME_TABLE1, NAME_TABLE2, NAME_TABLE3 },
-  { NAME_TABLE0, NAME_TABLE0, NAME_TABLE0, NAME_TABLE0 }
-#endif
+  { NAME_TABLE0, NAME_TABLE0, NAME_TABLE0, NAME_TABLE1 }
 };
 
 /*-------------------------------------------------------------------*/
@@ -536,6 +531,8 @@ void InfoNES_Mirroring( int nType )
  *        1 : Vertical
  *        2 : One Screen 0x2400
  *        3 : One Screen 0x2000
+ *        4 : Four Screen
+ *        5 : Special for Mapper #233
  */
 
   PPUBANK[ NAME_TABLE0 ] = &PPURAM[ PPU_MirrorTable[ nType ][ 0 ] * 0x400 ];

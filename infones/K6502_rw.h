@@ -120,6 +120,16 @@ static inline BYTE K6502_Read( WORD wAddr )
       {
         // APU control
         byRet = APU_Reg[ 0x4015 ];
+	if ( ApuC1Atl > 0 ) byRet |= (1<<0);
+	if ( ApuC2Atl > 0 ) byRet |= (1<<1);
+	if (  !ApuC3Holdnote ) {
+	  if ( ApuC3Atl > 0 ) byRet |= (1<<2);
+	} else {
+	  if ( ApuC3Llc > 0 ) byRet |= (1<<2);
+	}
+	if ( ApuC4Atl > 0 ) byRet |= (1<<3);
+
+	// FrameIRQ
         APU_Reg[ 0x4015 ] &= ~0x40;
         return byRet;
       }
@@ -274,7 +284,7 @@ static inline void K6502_Write( WORD wAddr, BYTE byData )
             PPU_Addr = ( PPU_Addr & 0xff00 ) | ( (WORD)byData );
 #else
             PPU_Temp = ( PPU_Temp & 0xFF00 ) | ( ( (WORD)byData ) & 0x00FF);
-			      PPU_Addr = PPU_Temp;
+	    PPU_Addr = PPU_Temp;
 #endif
             InfoNES_SetupScr();
           }
@@ -353,9 +363,13 @@ static inline void K6502_Write( WORD wAddr, BYTE byData )
         case 0x0d:
         case 0x0e:
         case 0x0f:
+        case 0x10:
+        case 0x11:	  
+        case 0x12:
+        case 0x13:
           // Call Function corresponding to Sound Registers
           if ( !APU_Mute )
-            pAPUSoundRegs[ wAddr & 0x0f ]( wAddr, byData );
+            pAPUSoundRegs[ wAddr & 0x1f ]( wAddr, byData );
           break;
 
         case 0x14:  /* 0x4014 */
@@ -394,8 +408,8 @@ static inline void K6502_Write( WORD wAddr, BYTE byData )
           /* Unknown */
           if ( byData & 0x10 ) 
           {
-			      byData &= ~0x80;
-		      }
+	    byData &= ~0x80;
+	  }
 #endif
           break;
 

@@ -24,11 +24,13 @@
 #define ApuC1Env            ( ApuC1a & 0x10 )
 #define ApuC1Hold           ( ApuC1a & 0x20 )
 #define ApuC1DutyCycle      ( ApuC1a & 0xc0 )
-#define ApuC1EnvDelay       ( ( WORD )( ApuC1a & 0x0f ) << 8 )
+//#define ApuC1EnvDelay       ( ( WORD )( ApuC1a & 0x0f ) << 8 )
+#define ApuC1EnvDelay       ( ( ApuC1a & 0x0f ) + 1 )
 #define ApuC1SweepOn        ( ApuC1b & 0x80 )
 #define ApuC1SweepIncDec    ( ApuC1b & 0x08 )
 #define ApuC1SweepShifts    ( ApuC1b & 0x07 ) 
-#define ApuC1SweepDelay     ( ( ( ( WORD )ApuC1b & 0x70 ) >> 4 ) << 8 )
+//#define ApuC1SweepDelay     ( ( ( ( WORD )ApuC1b & 0x70 ) >> 4 ) << 8 )
+#define ApuC1SweepDelay     ( ( ( ApuC1b & 0x70 ) >> 4 ) + 1 )
 #define ApuC1FreqLimit      ( ApuFreqLimit[ ( ApuC1b & 0x07 ) ] )
 
 /*-------------------------------------------------------------------*/ 
@@ -42,11 +44,13 @@
 #define ApuC2Env            ( ApuC2a & 0x10 )
 #define ApuC2Hold           ( ApuC2a & 0x20 )
 #define ApuC2DutyCycle      ( ApuC2a & 0xc0 )
-#define ApuC2EnvDelay       ( ( WORD )( ApuC2a & 0x0f ) << 8 )
+//#define ApuC2EnvDelay       ( ( WORD )( ApuC2a & 0x0f ) << 8 )
+#define ApuC2EnvDelay       ( ( ApuC2a & 0x0f ) + 1 )
 #define ApuC2SweepOn        ( ApuC2b & 0x80 )
 #define ApuC2SweepIncDec    ( ApuC2b & 0x08 )
 #define ApuC2SweepShifts    ( ApuC2b & 0x07 ) 
-#define ApuC2SweepDelay     ( ( ( ( WORD )ApuC2b & 0x70 ) >> 4 ) << 8 )
+//#define ApuC2SweepDelay     ( ( ( ( WORD )ApuC2b & 0x70 ) >> 4 ) << 8 )
+#define ApuC2SweepDelay     ( ( ( ApuC2b & 0x70 ) >> 4 ) + 1 )
 #define ApuC2FreqLimit      ( ApuFreqLimit[ ( ApuC2b & 0x07 ) ] )
 
 /*-------------------------------------------------------------------*/ 
@@ -66,13 +70,31 @@
 /* Reg2: 7=Small(93byte) sample, 3-0=Freq Lookup                     */
 /* Reg3: 7-3=vbl length counter                                      */
 /*-------------------------------------------------------------------*/ 
-#define ApuC4Vol            ( ( ApuC4a & 0x0f ) | ( ( ApuC4a & 0x0f ) << 4 ) )
-#define ApuC4EnvDelay       ( ( WORD )( ApuC4a & 0x0f ) << 8 )
+//#define ApuC4Vol            ( ( ApuC4a & 0x0f ) | ( ( ApuC4a & 0x0f ) << 4 ) )
+#define ApuC4Vol            ( ApuC4a & 0x0f )
+//#define ApuC4EnvDelay       ( ( WORD )( ApuC4a & 0x0f ) << 8 )
+#define ApuC4EnvDelay       ( ( ApuC4a & 0x0f ) + 1 )
 #define ApuC4Env            ( ApuC4a & 0x10 )
 #define ApuC4Hold           ( ApuC4a & 0x20 )
 #define ApuC4Freq           ( ApuNoiseFreq [ ( ApuC4c & 0x0f ) ] )
 #define ApuC4Small          ( ApuC4c & 0x80 )
-#define ApuC4LengthCounter  ( ApuAtl[ ( ( ApuC4d & 0xf8 ) >> 3 ) ] )
+//#define ApuC4LengthCounter  ( ApuAtl[ ( ( ApuC4d & 0xf8 ) >> 3 ) ] )
+#define ApuC4LengthCounter  ( ApuAtl[ ( ApuC4d >> 3 ) ] << 1 )
+
+/*-------------------------------------------------------------------*/ 
+/* DPCM Channel                                                      */
+/* Reg0: 0-3=Frequency, 6=Looping                                    */
+/* Reg1: 0-6=DPCM Value                                              */
+/* Reg2: 0-7=Cache Addr                                              */
+/* Reg3: 0-7=Cache DMA Length                                        */
+/*-------------------------------------------------------------------*/ 
+#if 0
+#define ApuC5Freq           ( ApuDpcmCycles[ ( ApuC5a & 0x0F ) ] )
+#define ApuC5Looping        ( ApuC5a & 0x40 )
+#define ApuC5DpcmValue      ( ( ApuC5b & 0x7F ) >> 1 )
+#define ApuC5CacheAddr      ( 0xc000 + (WORD)(ApuC5c << 6) )
+#define ApuC5CacheDmaLength ( ( ( ApuC5d << 4 ) + 1 ) << 3 )
+#endif
 
 /*-------------------------------------------------------------------*/
 /*  pAPU Event resources                                             */
@@ -107,14 +129,19 @@ struct ApuEvent_t {
 #define APUET_W_C4B     0x0d
 #define APUET_W_C4C     0x0e
 #define APUET_W_C4D     0x0f
-#define APUET_W_CTRL    0x10
-#define APUET_SYNC      0x20
+#define APUET_C5        0x10
+#define APUET_W_C5A     0x10
+#define APUET_W_C5B     0x11
+#define APUET_W_C5C     0x12
+#define APUET_W_C5D     0x13
+#define APUET_W_CTRL    0x20
+#define APUET_SYNC      0x40
 
 /*-------------------------------------------------------------------*/
 /*  Function prototypes                                              */
 /*-------------------------------------------------------------------*/
 typedef void (*ApuWritefunc)(WORD addr, BYTE value);
-extern ApuWritefunc pAPUSoundRegs[16];
+extern ApuWritefunc pAPUSoundRegs[20];
 void ApuWriteControl(WORD addr, BYTE value);
 
 #define InfoNES_pAPUWriteControl(addr,value) \
@@ -132,14 +159,38 @@ void InfoNES_pAPUVsync(void);
 
 /*-------------------------------------------------------------------*/
 /* ApuQuality is used to control the sound playback rate.            */
-/* anything < 1 disables sound.                                      */
 /* 1 is 22050 Hz.                                                    */
 /* 2 is 44100 Hz.                                                    */
-/* anything > 2 is 44100 Hz.                                         */
 /* these values subject to change without notice.                    */
 /*-------------------------------------------------------------------*/
 extern int ApuQuality;
-#define pAPU_QUALITY 1
+#define pAPU_QUALITY 2
+
+/*-------------------------------------------------------------------*/
+/*  Rectangle Wave #1 resources                                      */
+/*-------------------------------------------------------------------*/
+
+extern BYTE  ApuC1Atl;
+
+/*-------------------------------------------------------------------*/
+/*  Rectangle Wave #2 resources                                      */
+/*-------------------------------------------------------------------*/
+
+extern BYTE  ApuC2Atl;   
+
+/*-------------------------------------------------------------------*/
+/*  Triangle Wave resources                                          */
+/*-------------------------------------------------------------------*/
+
+extern BYTE  ApuC3a;
+extern BYTE  ApuC3Atl;
+extern DWORD ApuC3Llc;                             /* Linear Length Counter */
+
+/*-------------------------------------------------------------------*/
+/*  Noise resources                                                  */
+/*-------------------------------------------------------------------*/
+
+extern BYTE  ApuC4Atl;
 
 #endif /* InfoNES_PAPU_H_INCLUDED */
 

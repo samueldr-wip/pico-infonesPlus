@@ -36,6 +36,9 @@ void Map87_Init()
   /* Callback at Rendering Screen ( 1:BG, 0:Sprite ) */
   MapperRenderScreen = Map0_RenderScreen;
 
+  /* Set SRAM Banks */
+  SRAMBANK = SRAM;
+
   /* Set ROM Banks */
   ROMBANK0 = ROMPAGE( 0 );
   ROMBANK1 = ROMPAGE( 1 );

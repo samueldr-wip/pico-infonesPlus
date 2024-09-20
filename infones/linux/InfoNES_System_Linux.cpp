@@ -40,8 +40,9 @@ int nSRAM_SaveFlag;
 /*  Constants ( Linux specific )                                     */
 /*-------------------------------------------------------------------*/
 
-#define VBOX_SIZE 7 
+#define VBOX_SIZE    7 
 #define SOUND_DEVICE "/dev/dsp"
+#define VERSION      "InfoNES v0.9J"
 
 /*-------------------------------------------------------------------*/
 /*  Global Variables ( Linux specific )                              */
@@ -80,6 +81,8 @@ gint close_application( GtkWidget *widget, GdkEvent *event, gpointer data );
 void reset_application( void );
 gint start_application_aux( GtkObject *fw );
 void start_application( char *filename );
+void close_dialog( GtkWidget *widget, gpointer data );
+void closing_dialog( GtkWidget *widget, gpointer data );
 
 int LoadSRAM();
 int SaveSRAM();
@@ -107,7 +110,6 @@ WORD NesPalette[ 64 ] =
 int main(int argc, char **argv)
 {                                  
   int       i;
-  char      *title[] = { "InfoNES v0.8J" };
 
   /*-------------------------------------------------------------------*/
   /*  Initialize GTK+/GDK                                              */
@@ -125,7 +127,7 @@ int main(int argc, char **argv)
   /* Create a window */ 
   top=gtk_window_new(GTK_WINDOW_TOPLEVEL);
   gtk_widget_set_usize( GTK_WIDGET(top), NES_DISP_WIDTH + VBOX_SIZE, NES_DISP_HEIGHT + VBOX_SIZE );
-  gtk_window_set_title( GTK_WINDOW(top), title[0] );
+  gtk_window_set_title( GTK_WINDOW(top), VERSION );
   gtk_widget_set_events( GTK_WIDGET(top), GDK_KEY_RELEASE_MASK );
 
   /* Destroy a window */
@@ -300,6 +302,27 @@ void add_key( GtkWidget *widget, GdkEventKey *event, gpointer callback_data )
     case 'M':
       /* Toggle of sound mute */
       APU_Mute = ( APU_Mute ? 0 : 1 );
+      break;
+
+    case 'i':
+    case 'I':
+      /* If emulation thread doesn't run, nothing here */
+      if ( bThread )
+      {
+	InfoNES_MessageBox( "Mapper : %d\nPRG ROM : %dKB\nCHR ROM : %dKB\n" \
+			    "Mirroring : %s\nSRAM : %s\n4 Screen : %s\nTrainer : %s\n",
+			    MapperNo, NesHeader.byRomSize * 16, NesHeader.byVRomSize * 8,
+			    ( ROM_Mirroring ? "V" : "H" ), ( ROM_SRAM ? "Yes" : "No" ), 
+			    ( ROM_FourScr ? "Yes" : "No" ), ( ROM_Trainer ? "Yes" : "No" ) );
+      }
+      break;
+
+    case 'v':
+    case 'V':
+      /* Version Infomation */
+      InfoNES_MessageBox( "%s\nA fast and portable NES emulator\n"
+			  "Copyright (c) 1999-2003 Jay's Factory <jays_factory@excite.co.jp>",
+			  VERSION );
       break;
 
     defalut:  
@@ -850,7 +873,7 @@ void InfoNES_LoadFrame()
   GdkGC       *gc;
   GdkDrawable *drawable;
   guchar  pbyRgbBuf[ NES_DISP_WIDTH * NES_DISP_HEIGHT * 3 ];
-  guchar* pBuf;
+  register guchar* pBuf;
 
   /* Enter Critical Section */
   gdk_threads_enter();
@@ -862,9 +885,9 @@ void InfoNES_LoadFrame()
   pBuf = pbyRgbBuf;
 
   /* Exchange 16-bit to 24-bit  */
-  for ( int y = 0; y < NES_DISP_HEIGHT; y++ )
+  for ( register int y = 0; y < NES_DISP_HEIGHT; y++ )
   {
-    for ( int x = 0; x < NES_DISP_WIDTH; x++ )
+    for ( register int x = 0; x < NES_DISP_WIDTH; x++ )
     {  
       WORD wColor = WorkFrame[ ( y << 8 ) + x ];
 	  
@@ -941,7 +964,7 @@ int InfoNES_SoundOpen( int samples_per_sync, int sample_rate )
   sound_fd = open( SOUND_DEVICE, O_WRONLY );
   if ( sound_fd < 0 ) 
   {
-    g_print("opening "SOUND_DEVICE"...failed");
+    InfoNES_MessageBox("opening "SOUND_DEVICE"...failed");
     sound_fd = 0;
     return 0;
   } else {
@@ -953,7 +976,7 @@ int InfoNES_SoundOpen( int samples_per_sync, int sample_rate )
   result = ioctl(sound_fd, SNDCTL_DSP_SETFMT, &tmp);
   if ( result < 0 ) 
   {
-    g_print("setting unsigned 8-bit format...failed");
+    InfoNES_MessageBox("setting unsigned 8-bit format...failed");
     close(sound_fd);
     sound_fd = 0;
     return 0;
@@ -966,7 +989,7 @@ int InfoNES_SoundOpen( int samples_per_sync, int sample_rate )
   result = ioctl(sound_fd, SNDCTL_DSP_STEREO, &tmp);
   if (result < 0) 
   {
-    g_print("setting mono mode...failed");
+    InfoNES_MessageBox("setting mono mode...failed");
     close(sound_fd);
     sound_fd = 0;
     return 0;
@@ -978,7 +1001,7 @@ int InfoNES_SoundOpen( int samples_per_sync, int sample_rate )
   result = ioctl(sound_fd, SNDCTL_DSP_SPEED, &sound_rate);
   if ( result < 0 ) 
   {
-    g_print("setting sound rate...failed");
+    InfoNES_MessageBox("setting sound rate...failed");
     close(sound_fd);
     sound_fd = 0;
     return 0;
@@ -991,7 +1014,7 @@ int InfoNES_SoundOpen( int samples_per_sync, int sample_rate )
   result = ioctl(sound_fd, SNDCTL_DSP_SETFRAGMENT, &sound_frag);
   if (result < 0) 
   {
-    g_print("setting soundfrags...failed");
+    InfoNES_MessageBox("setting soundfrags...failed");
     close(sound_fd);
     sound_fd = 0;
     return 0;
@@ -1018,10 +1041,10 @@ void InfoNES_SoundClose( void )
 
 /*===================================================================*/
 /*                                                                   */
-/*            InfoNES_SoundOutput4() : Sound Output 4 Waves          */           
+/*            InfoNES_SoundOutput() : Sound Output 5 Waves           */           
 /*                                                                   */
 /*===================================================================*/
-void InfoNES_SoundOutput4( int samples, BYTE *wave1, BYTE *wave2, BYTE *wave3, BYTE *wave4 ) 
+void InfoNES_SoundOutput( int samples, BYTE *wave1, BYTE *wave2, BYTE *wave3, BYTE *wave4, BYTE *wave5 )
 {
   int i;
 
@@ -1029,8 +1052,14 @@ void InfoNES_SoundOutput4( int samples, BYTE *wave1, BYTE *wave2, BYTE *wave3, B
   {
     for (i = 0; i < samples; i++) 
     {
-      final_wave[ waveptr ] = ( wave1[i] + wave2[i] 
-				+ wave3[i] + wave4[i] ) >> 2;
+#if 1
+      final_wave[ waveptr ] = 
+	( wave1[i] + wave2[i] + wave3[i] + wave4[i] + wave5[i] ) / 5;
+#else
+      final_wave[ waveptr ] = wave4[i];
+#endif
+
+
       waveptr++;
       if ( waveptr == 2048 ) 
       {
@@ -1047,7 +1076,7 @@ void InfoNES_SoundOutput4( int samples, BYTE *wave1, BYTE *wave2, BYTE *wave3, B
     {
       if ( write( sound_fd, &final_wave[(wavflag - 1) << 10], 1024) < 1024 ) 
       {
-	g_print( "wrote less than 1024 bytes\n" );
+	InfoNES_MessageBox( "wrote less than 1024 bytes\n" );
       }
       wavflag = 0;
     }
@@ -1071,10 +1100,53 @@ void InfoNES_MessageBox( char *pszMsg, ... )
   char pszErr[ 1024 ];
   va_list args;
 
+  static GtkWidget *label;
+  GtkWidget *button;
+  GtkWidget *dialog_window;
+
+  // Create the message body
   va_start( args, pszMsg );
   vsprintf( pszErr, pszMsg, args );  pszErr[ 1023 ] = '\0';
   va_end( args );
+
+#if 0
+  // Only for debug
   g_print( pszErr );
+#else
+  // Create a dialog window
+  dialog_window = gtk_dialog_new();
+  gtk_signal_connect( GTK_OBJECT( dialog_window ), "destroy", 
+		      GTK_SIGNAL_FUNC( closing_dialog ), &dialog_window );
+  gtk_window_set_title( GTK_WINDOW( dialog_window ), VERSION );
+  gtk_container_border_width( GTK_CONTAINER( dialog_window ), 5 );
+
+  // Create a label
+  label = gtk_label_new( pszErr );
+  gtk_misc_set_padding( GTK_MISC( label ), 10, 10 );
+  gtk_box_pack_start( GTK_BOX( GTK_DIALOG( dialog_window )->vbox ), label, TRUE, TRUE, 0 );
+  gtk_widget_show( label );
+
+  // Create a OK button
+  button = gtk_button_new_with_label( "OK" );
+  gtk_signal_connect( GTK_OBJECT( button ), "clicked", GTK_SIGNAL_FUNC( close_dialog ), dialog_window );
+  GTK_WIDGET_SET_FLAGS( button, GTK_CAN_DEFAULT);
+  gtk_box_pack_start( GTK_BOX( GTK_DIALOG( dialog_window )->action_area ), button, TRUE, TRUE, 0 );
+
+  gtk_widget_grab_default( button );
+  gtk_widget_show( button );
+  gtk_widget_show( dialog_window );
+  gtk_grab_add( dialog_window );
+#endif
+}
+
+void close_dialog( GtkWidget *widget, gpointer data )
+{
+  gtk_widget_destroy( GTK_WIDGET( data ) );
+}
+
+void closing_dialog( GtkWidget *widget, gpointer data )
+{
+  gtk_grab_remove( GTK_WIDGET( widget ) );
 }
 
 /*

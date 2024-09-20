@@ -60,8 +60,8 @@ int InfoNES_SoundOpen( int samples_per_sync, int sample_rate );
 /* Sound Close */
 void InfoNES_SoundClose( void );
 
-/* Sound Output 4 Waves - 2 Pulse, 1 Triangle, 1 Noise */
-void InfoNES_SoundOutput4(int samples, BYTE *wave1, BYTE *wave2, BYTE *wave3, BYTE *wave4);
+/* Sound Output 5 Waves - 2 Pulse, 1 Triangle, 1 Noise, 1 DPCM */
+void InfoNES_SoundOutput(int samples, BYTE *wave1, BYTE *wave2, BYTE *wave3, BYTE *wave4, BYTE *wave5);
 
 /* Print system message */
 void InfoNES_MessageBox( char *pszMsg, ... );

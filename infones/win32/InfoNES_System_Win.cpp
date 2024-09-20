@@ -34,7 +34,7 @@ int nSRAM_SaveFlag;
 /*-------------------------------------------------------------------*/
 /*  Variables for Windows                                            */
 /*-------------------------------------------------------------------*/
-#define APP_NAME     "InfoNES v0.8J"
+#define APP_NAME     "InfoNES v0.9J"
  
 HWND hWndMain;
 WNDCLASS wc;
@@ -546,10 +546,21 @@ LRESULT CALLBACK MainWndproc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
 					/*-------------------------------------------------------------------*/
           /*  About button                                                     */
           /*-------------------------------------------------------------------*/
+#if 0
           DialogBox(wc.hInstance, 
                     MAKEINTRESOURCE(IDD_DIALOG), 
                     hWndMain, 
                     (DLGPROC)AboutDlgProc);
+#else
+          {
+            /* Version Infomation */
+            char pszInfo[1024];
+            sprintf( pszInfo, "%s\nA fast and portable NES emulator\n"
+			                        "Copyright (C) 1999-2003 Jay's Factory <jays_factory@excite.co.jp>",
+			                        APP_NAME );
+            MessageBox( hWndMain, pszInfo, APP_NAME, MB_OK | MB_ICONINFORMATION );   
+          }
+#endif
           break;
       }
 			break;
@@ -1119,16 +1130,16 @@ void InfoNES_SoundClose( void )
 
 /*===================================================================*/
 /*                                                                   */
-/*            InfoNES_SoundOutput4() : Sound Output 4 Waves          */           
+/*            InfoNES_SoundOutput() : Sound Output Waves             */           
 /*                                                                   */
 /*===================================================================*/
-void InfoNES_SoundOutput4( int samples, BYTE *wave1, BYTE *wave2, BYTE *wave3, BYTE *wave4 ) 
+void InfoNES_SoundOutput( int samples, BYTE *wave1, BYTE *wave2, BYTE *wave3, BYTE *wave4, BYTE *wave5 ) 
 {
   BYTE wave[ rec_freq ];
   
   for ( int i = 0; i < rec_freq; i++)
   {
-    wave[i] = ( wave1[i] + wave2[i] + wave3[i] + wave4[i] ) >> 2;
+    wave[i] = ( wave1[i] + wave2[i] + wave3[i] + wave4[i] + wave5[i] ) / 5;
   }
 #if 1
   if (!lpSndDevice->SoundOutput( samples, wave ) )

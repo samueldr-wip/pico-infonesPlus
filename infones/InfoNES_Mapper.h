@@ -16,6 +16,19 @@
 #include "InfoNES_Types.h"
 
 /*-------------------------------------------------------------------*/
+/*  Constants                                                        */
+/*-------------------------------------------------------------------*/
+
+#define DRAM_SIZE    0xA000
+
+/*-------------------------------------------------------------------*/
+/*  Mapper resources                                                 */
+/*-------------------------------------------------------------------*/
+
+/* Disk System RAM */
+extern BYTE DRAM[];
+
+/*-------------------------------------------------------------------*/
 /*  Macros                                                           */
 /*-------------------------------------------------------------------*/
 
@@ -25,12 +38,10 @@
 #define ROMLASTPAGE(a) &ROM[ NesHeader.byRomSize * 0x4000 - ( (a) + 1 ) * 0x2000 ]
 /* The address of 1Kbytes unit of the VROM */
 #define VROMPAGE(a)    &VROM[ (a) * 0x400 ]
+/* The address of 1Kbytes unit of the CRAM */
+#define CRAMPAGE(a)   &PPURAM[ 0x0000 + ((a)&0x1F) * 0x400 ]
 /* The address of 1Kbytes unit of the VRAM */
 #define VRAMPAGE(a)    &PPURAM[ 0x2000 + (a) * 0x400 ]
-/* The address of 1Kbytes unit of the VRAM */
-#define VRAMPAGE0(a)   &PPURAM[ 0x0000 + (a) * 0x400 ]
-/* The address of 1Kbytes unit of the VRAM */
-#define VRAMPAGE1(a)   &PPURAM[ 0x1000 + (a) * 0x400 ]
 /* Translate the pointer to ChrBuf into the address of Pattern Table */ 
 #define PATTBL(a)      ( ( (a) - ChrBuf ) >> 2 )
 
@@ -118,6 +129,9 @@ void Map10_PPU( WORD wAddr );
 
 void Map11_Init();
 void Map11_Write( WORD wAddr, BYTE byData );
+
+void Map13_Init();
+void Map13_Write( WORD wAddr, BYTE byData );
 
 void Map15_Init();
 void Map15_Write( WORD wAddr, BYTE byData );
@@ -236,6 +250,23 @@ void Map50_Init();
 void Map50_Apu( WORD wAddr, BYTE byData );
 void Map50_HSync();
 
+void Map51_Init();
+void Map51_Sram( WORD wAddr, BYTE byData );
+void Map51_Write( WORD wAddr, BYTE byData );
+void Map51_Set_CPU_Banks();
+
+void Map57_Init();
+void Map57_Write( WORD wAddr, BYTE byData );
+
+void Map58_Init();
+void Map58_Write( WORD wAddr, BYTE byData );
+
+void Map60_Init();
+void Map60_Write( WORD wAddr, BYTE byData );
+
+void Map62_Init();
+void Map62_Write( WORD wAddr, BYTE byData );
+
 void Map64_Init();
 void Map64_Write( WORD wAddr, BYTE byData );
 
@@ -270,6 +301,12 @@ void Map72_Write( WORD wAddr, BYTE byData );
 void Map73_Init();
 void Map73_Write( WORD wAddr, BYTE byData );
 void Map73_HSync();
+
+void Map74_Init();
+void Map74_Write( WORD wAddr, BYTE byData );
+void Map74_HSync();
+void Map74_Set_CPU_Banks();
+void Map74_Set_PPU_Banks();
 
 void Map75_Init();
 void Map75_Write( WORD wAddr, BYTE byData );
@@ -340,11 +377,39 @@ void Map95_Write( WORD wAddr, BYTE byData );
 void Map95_Set_CPU_Banks();
 void Map95_Set_PPU_Banks();
 
+void Map96_Init();
+void Map96_Write( WORD wAddr, BYTE byData );
+void Map96_PPU( WORD wAddr );
+void Map96_Set_Banks();
+
 void Map97_Init();
 void Map97_Write( WORD wAddr, BYTE byData );
 
+void Map100_Init();
+void Map100_Write( WORD wAddr, BYTE byData );
+void Map100_HSync();
+void Map100_Set_CPU_Banks();
+void Map100_Set_PPU_Banks();
+
 void Map101_Init();
 void Map101_Write( WORD wAddr, BYTE byData );
+
+void Map105_Init();
+void Map105_Write( WORD wAddr, BYTE byData );
+void Map105_HSync();
+
+void Map107_Init();
+void Map107_Write( WORD wAddr, BYTE byData );
+
+void Map108_Init();
+void Map108_Write( WORD wAddr, BYTE byData );
+
+void Map109_Init();
+void Map109_Apu( WORD wAddr, BYTE byData );
+void Map109_Set_PPU_Banks();
+
+void Map110_Init();
+void Map110_Apu( WORD wAddr, BYTE byData );
 
 void Map112_Init();
 void Map112_Write( WORD wAddr, BYTE byData );
@@ -363,6 +428,19 @@ void Map114_HSync();
 void Map114_Set_CPU_Banks();
 void Map114_Set_PPU_Banks();
 
+void Map115_Init();
+void Map115_Sram( WORD wAddr, BYTE byData );
+void Map115_Write( WORD wAddr, BYTE byData );
+void Map115_HSync();
+void Map115_Set_CPU_Banks();
+void Map115_Set_PPU_Banks();
+
+void Map116_Init();
+void Map116_Write( WORD wAddr, BYTE byData );
+void Map116_HSync();
+void Map116_Set_CPU_Banks();
+void Map116_Set_PPU_Banks();
+
 void Map117_Init();
 void Map117_Write( WORD wAddr, BYTE byData );
 void Map117_HSync();
@@ -373,8 +451,28 @@ void Map118_HSync();
 void Map118_Set_CPU_Banks();
 void Map118_Set_PPU_Banks();
 
+void Map119_Init();
+void Map119_Write( WORD wAddr, BYTE byData );
+void Map119_HSync();
+void Map119_Set_CPU_Banks();
+void Map119_Set_PPU_Banks();
+
 void Map122_Init();
 void Map122_Sram( WORD wAddr, BYTE byData );
+
+void Map133_Init();
+void Map133_Apu( WORD wAddr, BYTE byData );
+
+void Map134_Init();
+void Map134_Apu( WORD wAddr, BYTE byData );
+
+void Map135_Init();
+void Map135_Apu( WORD wAddr, BYTE byData );
+void Map135_Set_PPU_Banks();
+
+void Map140_Init();
+void Map140_Sram( WORD wAddr, BYTE byData );
+void Map140_Apu( WORD wAddr, BYTE byData );
 
 void Map151_Init();
 void Map151_Write( WORD wAddr, BYTE byData );
@@ -386,12 +484,27 @@ void Map160_HSync();
 void Map180_Init();
 void Map180_Write( WORD wAddr, BYTE byData );
 
+void Map181_Init();
+void Map181_Apu( WORD wAddr, BYTE byData );
+
 void Map182_Init();
 void Map182_Write( WORD wAddr, BYTE byData );
 void Map182_HSync();
 
+void Map183_Init();
+void Map183_Write( WORD wAddr, BYTE byData );
+void Map183_HSync();
+
 void Map185_Init();
 void Map185_Write( WORD wAddr, BYTE byData );
+
+void Map187_Init();
+void Map187_Write( WORD wAddr, BYTE byData );
+void Map187_Apu( WORD wAddr, BYTE byData );
+BYTE Map187_ReadApu( WORD wAddr );
+void Map187_HSync();
+void Map187_Set_CPU_Banks();
+void Map187_Set_PPU_Banks();
 
 void Map188_Init();
 void Map188_Write( WORD wAddr, BYTE byData );
@@ -401,7 +514,108 @@ void Map189_Apu( WORD wAddr, BYTE byData );
 void Map189_Write( WORD wAddr, BYTE byData );
 void Map189_HSync();
 
+void Map191_Init();
+void Map191_Apu( WORD wAddr, BYTE byData );
+void Map191_Set_CPU_Banks();
+void Map191_Set_PPU_Banks();
+
+void Map193_Init();
+void Map193_Sram( WORD wAddr, BYTE byData );
+
+void Map194_Init();
+void Map194_Write( WORD wAddr, BYTE byData );
+
+void Map222_Init();
+void Map222_Write( WORD wAddr, BYTE byData );
+
+void Map225_Init();
+void Map225_Write( WORD wAddr, BYTE byData );
+
+void Map226_Init();
+void Map226_Write( WORD wAddr, BYTE byData );
+
+void Map227_Init();
+void Map227_Write( WORD wAddr, BYTE byData );
+
+void Map228_Init();
+void Map228_Write( WORD wAddr, BYTE byData );
+
+void Map229_Init();
+void Map229_Write( WORD wAddr, BYTE byData );
+
+void Map230_Init();
+void Map230_Write( WORD wAddr, BYTE byData );
+
+void Map231_Init();
+void Map231_Write( WORD wAddr, BYTE byData );
+
+void Map232_Init();
+void Map232_Write( WORD wAddr, BYTE byData );
+
+void Map233_Init();
+void Map233_Write( WORD wAddr, BYTE byData );
+
+void Map234_Init();
+void Map234_Write( WORD wAddr, BYTE byData );
+void Map234_Set_Banks();
+
+void Map235_Init();
+void Map235_Write( WORD wAddr, BYTE byData );
+
+void Map236_Init();
+void Map236_Write( WORD wAddr, BYTE byData );
+
+void Map240_Init();
+void Map240_Apu( WORD wAddr, BYTE byData );
+
+void Map241_Init();
+void Map241_Write( WORD wAddr, BYTE byData );
+
+void Map242_Init();
+void Map242_Write( WORD wAddr, BYTE byData );
+
 void Map243_Init();
 void Map243_Apu( WORD wAddr, BYTE byData );
+
+void Map244_Init();
+void Map244_Write( WORD wAddr, BYTE byData );
+
+void Map245_Init();
+void Map245_Write( WORD wAddr, BYTE byData );
+void Map245_HSync();
+#if 0
+void Map245_Set_CPU_Banks();
+void Map245_Set_PPU_Banks();
+#endif 
+
+void Map246_Init();
+void Map246_Sram( WORD wAddr, BYTE byData );
+
+void Map248_Init();
+void Map248_Write( WORD wAddr, BYTE byData );
+void Map248_Apu( WORD wAddr, BYTE byData );
+void Map248_Sram( WORD wAddr, BYTE byData );
+void Map248_HSync();
+void Map248_Set_CPU_Banks();
+void Map248_Set_PPU_Banks();
+
+void Map249_Init();
+void Map249_Write( WORD wAddr, BYTE byData );
+void Map249_Apu( WORD wAddr, BYTE byData );
+void Map249_HSync();
+
+void Map251_Init();
+void Map251_Write( WORD wAddr, BYTE byData );
+void Map251_Sram( WORD wAddr, BYTE byData );
+void Map251_Set_Banks();
+
+void Map252_Init();
+void Map252_Write( WORD wAddr, BYTE byData );
+void Map252_HSync();
+
+void Map255_Init();
+void Map255_Write( WORD wAddr, BYTE byData );
+void Map255_Apu( WORD wAddr, BYTE byData );
+BYTE Map255_ReadApu( WORD wAddr );
 
 #endif /* !InfoNES_MAPPER_H_INCLUDED */

@@ -179,10 +179,18 @@ void Map5_Apu( WORD wAddr, BYTE byData )
         switch ( byNamReg )
         {
           case 0:
+#if 1
             PPUBANK[ nPage + 8 ] = VRAMPAGE( 0 );
+#else
+            PPUBANK[ nPage + 8 ] = CRAMPAGE( 8 );
+#endif
             break;
           case 1:
+#if 1
             PPUBANK[ nPage + 8 ] = VRAMPAGE( 1 );
+#else
+            PPUBANK[ nPage + 8 ] = CRAMPAGE( 9 );
+#endif
             break;
           case 2:
             PPUBANK[ nPage + 8 ] = Map5_Ex_Vram;

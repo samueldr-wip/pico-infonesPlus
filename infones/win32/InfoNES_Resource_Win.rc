@@ -116,7 +116,7 @@ CAPTION "バージョン情報"
 FONT 9, "ＭＳ Ｐゴシック"
 BEGIN
     DEFPUSHBUTTON   "OK",IDOK,64,43,19,14
-    LTEXT           "InfoNES v0.8J\nCopyright (c) 1999-2003\nJay's Factory",
+    LTEXT           "InfoNES v0.9J\nCopyright (c) 1999-2003\nJay's Factory",
                     IDC_STATIC,12,14,75,25
     GROUPBOX        "",IDC_STATIC,4,1,87,63
 END
