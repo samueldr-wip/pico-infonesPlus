@@ -48,7 +48,7 @@ int		g_nSRAM_SaveFlag;
 /*  Global Variables                                                 */
 /*-------------------------------------------------------------------*/
 
-#define VERSION  "InfoNES v0.96J"
+#define VERSION  "InfoNES v0.97J"
 const TCHAR c_szAppName[] = TEXT("InfoNES Pocket PC 2003 Application");
 const TCHAR c_szTitle[]   = TEXT("InfoNES");
 
@@ -500,7 +500,7 @@ BOOL CALLBACK KeyPressDlg(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		case WM_KEYDOWN:
 		{
 			if (wParam == 0x5B) {
-				for (int i = 0xC1; i < 0xC6; i++) {
+				for (int i = 0xC0; i < 0xDF; i++) {
 					if (GetAsyncKeyState(i)) {
 						press_key = i;
 						EndDialog(hwndDlg, IDOK);
