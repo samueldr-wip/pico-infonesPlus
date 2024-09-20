@@ -15,6 +15,7 @@
 #include <limits.h>
 #include <stdio.h>
 #include <crtdbg.h>
+#include <stdarg.h>
 
 #include "../InfoNES.h"
 #include "../InfoNES_System.h"
@@ -33,7 +34,7 @@ int nSRAM_SaveFlag;
 /*-------------------------------------------------------------------*/
 /*  Variables for Windows                                            */
 /*-------------------------------------------------------------------*/
-#define APP_NAME     "InfoNES v0.79J"
+#define APP_NAME     "InfoNES v0.8J"
  
 HWND hWndMain;
 WNDCLASS wc;
@@ -522,7 +523,26 @@ LRESULT CALLBACK MainWndproc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
           }                      
           break;
 
-				case IDC_BTN_ABOUT:
+        case IDC_BTN_INFO:
+					/*-------------------------------------------------------------------*/
+          /*  ROM information                                                  */
+          /*-------------------------------------------------------------------*/
+          if (NULL != m_hThread) 
+          {
+            char pszInfo[1024];
+            sprintf( pszInfo, "Mapper\t\t%d\nPRG ROM\t\t%dKB\nCHR ROM\t\t%dKB\n" \
+                              "Mirroring\t\t%s\nSRAM\t\t%s\n4 Screen\t\t%s\nTrainer\t\t%s",
+                              MapperNo, NesHeader.byRomSize * 16, NesHeader.byVRomSize * 8,
+                              ( ROM_Mirroring ? "V" : "H" ), ( ROM_SRAM ? "Yes" : "No" ), 
+                              ( ROM_FourScr ? "Yes" : "No" ), ( ROM_Trainer ? "Yes" : "No" ) );
+            MessageBox( hWndMain, pszInfo, APP_NAME, MB_OK | MB_ICONINFORMATION );              
+          } else {
+            // Show Title Screen
+            ShowTitle( hWnd );
+          }
+          break;
+
+        case IDC_BTN_ABOUT:
 					/*-------------------------------------------------------------------*/
           /*  About button                                                     */
           /*-------------------------------------------------------------------*/
@@ -868,7 +888,7 @@ int InfoNES_ReadRom( const char *pszFileName )
 
 /*===================================================================*/
 /*                                                                   */
-/*           InfoNES_ReleaseRom() : Release a memory for ROM           */
+/*           InfoNES_ReleaseRom() : Release a memory for ROM         */
 /*                                                                   */
 /*===================================================================*/
 void InfoNES_ReleaseRom()
@@ -1230,9 +1250,15 @@ void InfoNES_Wait()
 /*            InfoNES_MessageBox() : Print System Message            */
 /*                                                                   */
 /*===================================================================*/
-void InfoNES_MessageBox( char *pszMsg )
+void InfoNES_MessageBox( char *pszMsg, ... )
 {
-  MessageBox( hWndMain, pszMsg, APP_NAME, MB_OK | MB_ICONSTOP );
+  char pszErr[ 1024 ];
+  va_list args;
+
+  va_start( args, pszMsg );
+  vsprintf( pszErr, pszMsg, args );  pszErr[ 1023 ] = '\0';
+  va_end( args );
+  MessageBox( hWndMain, pszErr, APP_NAME, MB_OK | MB_ICONSTOP );
 }
 
 /*===================================================================*/

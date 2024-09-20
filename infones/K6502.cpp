@@ -11,6 +11,7 @@
 /*-------------------------------------------------------------------*/
 
 #include "K6502.h"
+#include "InfoNES_System.h"
 
 /*-------------------------------------------------------------------*/
 /*  Operation Macros                                                 */
@@ -301,7 +302,7 @@ void K6502_Reset()
   PC = K6502_ReadW( VECTOR_RESET );
   SP = 0xFF;
   A = X = Y = 0;
-  F = FLAG_Z | FLAG_R;
+  F = FLAG_Z | FLAG_R | FLAG_I;
 
   // Set up the state of the Interrupt pin.
   NMI_State = NMI_Wiring;
@@ -354,12 +355,14 @@ void K6502_Step( WORD wClocks )
   if ( NMI_State != NMI_Wiring )
   {
     // NMI Interrupt
+    NMI_State = NMI_Wiring;
     CLK( 7 );
 
     PUSHW( PC );
     PUSH( F & ~FLAG_B );
 
     RSTF( FLAG_D );
+    SETF( FLAG_I );
 
     PC = K6502_ReadW( VECTOR_NMI );
   }
@@ -370,6 +373,7 @@ void K6502_Step( WORD wClocks )
     // Execute IRQ if an I flag isn't being set
     if ( !( F & FLAG_I ) )
     {
+      IRQ_State = IRQ_Wiring;
       CLK( 7 );
 
       PUSHW( PC );
@@ -381,9 +385,6 @@ void K6502_Step( WORD wClocks )
       PC = K6502_ReadW( VECTOR_IRQ );
     }
   }
-
-  NMI_State = NMI_Wiring;
-  IRQ_State = IRQ_Wiring;
 
   // It has a loop until a constant clock passes
   while ( g_wPassedClocks < wClocks )
@@ -411,7 +412,7 @@ void K6502_Step( WORD wClocks )
         break;
 
       case 0x08:  // PHP
-        PUSH( F ); CLK( 3 );
+        SETF( FLAG_B ); PUSH( F ); CLK( 3 );
         break;
 
       case 0x09:  // ORA #Oper
@@ -597,30 +598,18 @@ void K6502_Step( WORD wClocks )
       case 0x58: // CLI
         byD0 = F;
         RSTF( FLAG_I ); CLK( 2 );
-#if 0
-        if ( ( byD0 & FLAG_I ) && IRQ_State == 0 )
-#else
-        if ( ( byD0 & FLAG_I ) && IRQ_State != IRQ_Wiring )    
-#endif        
+        if ( ( byD0 & FLAG_I ) && IRQ_State != IRQ_Wiring )  
         {
-          // IRQ Interrupt
-          // Execute IRQ if an I flag isn't being set
-#if 0
-          if ( !( F & FLAG_I ) )
-#else
-          if ( !( byD0 & FLAG_I ) )
-#endif          
-          {
-            CLK( 7 );
+          IRQ_State = IRQ_Wiring;          
+          CLK( 7 );
 
-            PUSHW( PC );
-            PUSH( F & ~FLAG_B );
+          PUSHW( PC );
+          PUSH( F & ~FLAG_B );
 
-            RSTF( FLAG_D );
-            SETF( FLAG_I );
+          RSTF( FLAG_D );
+          SETF( FLAG_I );
     
-            PC = K6502_ReadW( VECTOR_IRQ );
-          }
+          PC = K6502_ReadW( VECTOR_IRQ );
         }
         break;
 
@@ -1024,8 +1013,61 @@ void K6502_Step( WORD wClocks )
         INC( AA_ABSX ); CLK( 7 );
         break;
 
+      /*-----------------------------------------------------------*/
+      /*  Unlisted Instructions ( thanks to virtualnes )           */
+      /*-----------------------------------------------------------*/
+
+			case	0x1A: // NOP (Unofficial)
+			case	0x3A: // NOP (Unofficial)
+			case	0x5A: // NOP (Unofficial)
+			case	0x7A: // NOP (Unofficial)
+			case	0xDA: // NOP (Unofficial)
+			case	0xFA: // NOP (Unofficial)
+				CLK( 2 );
+				break;
+
+			case	0x80: // DOP (CYCLES 2)
+			case	0x82: // DOP (CYCLES 2)
+			case	0x89: // DOP (CYCLES 2)
+			case	0xC2: // DOP (CYCLES 2)
+			case	0xE2: // DOP (CYCLES 2)
+				PC++;
+				CLK( 2 );
+				break;
+
+			case	0x04: // DOP (CYCLES 3)
+			case	0x44: // DOP (CYCLES 3)
+			case	0x64: // DOP (CYCLES 3)
+				PC++;
+				CLK( 3 );
+				break;
+
+			case	0x14: // DOP (CYCLES 4)
+			case	0x34: // DOP (CYCLES 4)
+			case	0x54: // DOP (CYCLES 4)
+			case	0x74: // DOP (CYCLES 4)
+			case	0xD4: // DOP (CYCLES 4)
+			case	0xF4: // DOP (CYCLES 4)
+        PC++; 
+        CLK( 4 );
+        break;
+
+			case	0x0C: // TOP
+			case	0x1C: // TOP
+			case	0x3C: // TOP
+			case	0x5C: // TOP
+			case	0x7C: // TOP
+			case	0xDC: // TOP
+			case	0xFC: // TOP
+				PC+=2;
+				CLK( 4 );
+				break;
+
       default:   // Unknown Instruction
         CLK( 2 );
+#if 0
+        InfoNES_MessageBox( "0x%02x is unknown instruction.\n", byCode ) ;
+#endif
         break;
         
     }  /* end of switch ( byCode ) */

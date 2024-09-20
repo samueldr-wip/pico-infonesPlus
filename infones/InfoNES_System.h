@@ -64,6 +64,6 @@ void InfoNES_SoundClose( void );
 void InfoNES_SoundOutput4(int samples, BYTE *wave1, BYTE *wave2, BYTE *wave3, BYTE *wave4);
 
 /* Print system message */
-void InfoNES_MessageBox( char *pszMsg );
+void InfoNES_MessageBox( char *pszMsg, ... );
 
 #endif /* !InfoNES_SYSTEM_H_INCLUDED */

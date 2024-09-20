@@ -154,9 +154,13 @@ WORD FrameSkip;
 WORD FrameCnt;
 
 /* Display Buffer */
+#if 0
 WORD DoubleFrame[ 2 ][ NES_DISP_WIDTH * NES_DISP_HEIGHT ];
 WORD *WorkFrame;
 WORD WorkFrameIdx;
+#else
+WORD WorkFrame[ NES_DISP_WIDTH * NES_DISP_HEIGHT ];
+#endif
 
 /* Character Buffer */
 BYTE ChrBuf[ 256 * 2 * 8 * 8 ];
@@ -392,10 +396,12 @@ int InfoNES_Reset()
   FrameSkip = 0;
   FrameCnt = 0;
 
+#if 0
   // Reset work frame
   WorkFrame = DoubleFrame[ 0 ];
   WorkFrameIdx = 0;
-  
+#endif
+
   // Reset update flag of ChrBuf
   ChrBufUpdate = 0xff;
 
@@ -435,6 +441,7 @@ int InfoNES_Reset()
   if ( MapperTable[ nIdx ].nMapperNo == -1 )
   {
     // Non support mapper
+    InfoNES_MessageBox( "Mapper #%d is unsupported.\n", MapperNo );
     return -1;
   }
 
@@ -475,7 +482,7 @@ void InfoNES_SetupPPU()
   PPU_Latch_Flag = 0;
 
   // Reset up and down clipping flag
-  PPU_UpDown_Clip = 1;
+  PPU_UpDown_Clip = 0;
 
   FrameStep = 0;
   FrameIRQ_Enable = 0;
@@ -603,7 +610,8 @@ void InfoNES_Cycle()
       K6502_Step( nStep );
 
       // Set a sprite hit flag
-      PPU_R2 |= R2_HIT_SP;
+      if ( ( PPU_R1 & R1_SHOW_SP ) && ( PPU_R1 & R1_SHOW_SCR ) )
+        PPU_R2 |= R2_HIT_SP;
 
       // NMI is required if there is necessity
       if ( ( PPU_R0 & R0_NMI_SP ) && ( PPU_R1 & R1_SHOW_SP ) )
@@ -702,9 +710,11 @@ int InfoNES_HSync()
         // Transfer the contents of work frame on the screen
         InfoNES_LoadFrame();
         
+#if 0
         // Switching of the double buffer
         WorkFrameIdx = 1 - WorkFrameIdx;
         WorkFrame = DoubleFrame[ WorkFrameIdx ];
+#endif
       }
       break;
 
@@ -783,145 +793,149 @@ void InfoNES_DrawLine()
   // Pointer to the render position
   pPoint = &WorkFrame[ PPU_Scanline * NES_DISP_WIDTH ];
 
-  // Clear a scanline if up and down clipping flag is set
-  if ( PPU_UpDown_Clip &&
-       ( SCAN_ON_SCREEN_START > PPU_Scanline 
-	 || PPU_Scanline > SCAN_BOTTOM_OFF_SCREEN_START ) )
-  {
-    InfoNES_MemorySet( pPoint, 0, NES_DISP_WIDTH << 1 );
-    return;
-  }
-
   // Clear a scanline if screen is off
   if ( !( PPU_R1 & R1_SHOW_SCR ) )
   {
     InfoNES_MemorySet( pPoint, 0, NES_DISP_WIDTH << 1 );
-    return;
   }
-
-  nNameTable = PPU_NameTableBank;
-
-  nY = PPU_Scr_V_Byte + ( PPU_Scanline >> 3 );
-
-  nYBit = PPU_Scr_V_Bit + ( PPU_Scanline & 7 );
-
-  if ( nYBit > 7 )
+  else
   {
-    ++nY;
-    nYBit &= 7;
-  }
-  nYBit <<= 3;
+    nNameTable = PPU_NameTableBank;
 
-  if ( nY > 29 )
-  {
-    // Next NameTable (An up-down direction)
-    nNameTable ^= NAME_TABLE_V_MASK;
-    nY -= 30;
-  }
+    nY = PPU_Scr_V_Byte + ( PPU_Scanline >> 3 );
 
-  nX = PPU_Scr_H_Byte;
+    nYBit = PPU_Scr_V_Bit + ( PPU_Scanline & 7 );
 
-  nY4 = ( ( nY & 2 ) << 1 );
+    if ( nYBit > 7 )
+    {
+      ++nY;
+      nYBit &= 7;
+    }
+    nYBit <<= 3;
 
-  /*-------------------------------------------------------------------*/
-  /*  Rendering of the block of the left end                           */
-  /*-------------------------------------------------------------------*/
+    if ( nY > 29 )
+    {
+      // Next NameTable (An up-down direction)
+      nNameTable ^= NAME_TABLE_V_MASK;
+      nY -= 30;
+    }
 
-  pbyNameTable = PPUBANK[ nNameTable ] + nY * 32 + nX;
-  pbyChrData = PPU_BG_Base + ( *pbyNameTable << 6 ) + nYBit;
-  pAttrBase = PPUBANK[ nNameTable ] + 0x3c0 + ( nY / 4 ) * 8;
-  pPalTbl =  &PalTable[ ( ( ( pAttrBase[ nX >> 2 ] >> ( ( nX & 2 ) + nY4 ) ) & 3 ) << 2 ) ];
+    nX = PPU_Scr_H_Byte;
 
-  for ( nIdx = PPU_Scr_H_Bit; nIdx < 8; ++nIdx )
-  {
-    *( pPoint++ ) = pPalTbl[ pbyChrData[ nIdx ] ];
-  }
+    nY4 = ( ( nY & 2 ) << 1 );
 
-  // Callback at PPU read/write
-  MapperPPU( PATTBL( pbyChrData ) );
+    /*-------------------------------------------------------------------*/
+    /*  Rendering of the block of the left end                           */
+    /*-------------------------------------------------------------------*/
 
-  ++nX;
-  ++pbyNameTable;
-
-  /*-------------------------------------------------------------------*/
-  /*  Rendering of the left table                                      */
-  /*-------------------------------------------------------------------*/
-
-  for ( ; nX < 32; ++nX )
-  {
+    pbyNameTable = PPUBANK[ nNameTable ] + nY * 32 + nX;
     pbyChrData = PPU_BG_Base + ( *pbyNameTable << 6 ) + nYBit;
-    pPalTbl = &PalTable[ ( ( ( pAttrBase[ nX >> 2 ] >> ( ( nX & 2 ) + nY4 ) ) & 3 ) << 2 ) ];
+    pAttrBase = PPUBANK[ nNameTable ] + 0x3c0 + ( nY / 4 ) * 8;
+    pPalTbl =  &PalTable[ ( ( ( pAttrBase[ nX >> 2 ] >> ( ( nX & 2 ) + nY4 ) ) & 3 ) << 2 ) ];
 
-    pPoint[ 0 ] = pPalTbl[ pbyChrData[ 0 ] ]; 
-    pPoint[ 1 ] = pPalTbl[ pbyChrData[ 1 ] ];
-    pPoint[ 2 ] = pPalTbl[ pbyChrData[ 2 ] ];
-    pPoint[ 3 ] = pPalTbl[ pbyChrData[ 3 ] ];
-    pPoint[ 4 ] = pPalTbl[ pbyChrData[ 4 ] ];
-    pPoint[ 5 ] = pPalTbl[ pbyChrData[ 5 ] ];
-    pPoint[ 6 ] = pPalTbl[ pbyChrData[ 6 ] ];
-    pPoint[ 7 ] = pPalTbl[ pbyChrData[ 7 ] ];
-    pPoint += 8;
+    for ( nIdx = PPU_Scr_H_Bit; nIdx < 8; ++nIdx )
+    {
+      *( pPoint++ ) = pPalTbl[ pbyChrData[ nIdx ] ];
+    }
 
     // Callback at PPU read/write
     MapperPPU( PATTBL( pbyChrData ) );
 
+    ++nX;
     ++pbyNameTable;
-  }
 
-  // Holizontal Mirror
-  nNameTable ^= NAME_TABLE_H_MASK;
+    /*-------------------------------------------------------------------*/
+    /*  Rendering of the left table                                      */
+    /*-------------------------------------------------------------------*/
 
-  pbyNameTable = PPUBANK[ nNameTable ] + nY * 32;
-  pAttrBase = PPUBANK[ nNameTable ] + 0x3c0 + ( nY / 4 ) * 8;
+    for ( ; nX < 32; ++nX )
+    {
+      pbyChrData = PPU_BG_Base + ( *pbyNameTable << 6 ) + nYBit;
+      pPalTbl = &PalTable[ ( ( ( pAttrBase[ nX >> 2 ] >> ( ( nX & 2 ) + nY4 ) ) & 3 ) << 2 ) ];
 
-  /*-------------------------------------------------------------------*/
-  /*  Rendering of the right table                                     */
-  /*-------------------------------------------------------------------*/
+      pPoint[ 0 ] = pPalTbl[ pbyChrData[ 0 ] ]; 
+      pPoint[ 1 ] = pPalTbl[ pbyChrData[ 1 ] ];
+      pPoint[ 2 ] = pPalTbl[ pbyChrData[ 2 ] ];
+      pPoint[ 3 ] = pPalTbl[ pbyChrData[ 3 ] ];
+      pPoint[ 4 ] = pPalTbl[ pbyChrData[ 4 ] ];
+      pPoint[ 5 ] = pPalTbl[ pbyChrData[ 5 ] ];
+      pPoint[ 6 ] = pPalTbl[ pbyChrData[ 6 ] ];
+      pPoint[ 7 ] = pPalTbl[ pbyChrData[ 7 ] ];
+      pPoint += 8;
 
-  for ( nX = 0; nX < PPU_Scr_H_Byte; ++nX )
-  {
+      // Callback at PPU read/write
+      MapperPPU( PATTBL( pbyChrData ) );
+
+      ++pbyNameTable;
+    }
+
+    // Holizontal Mirror
+    nNameTable ^= NAME_TABLE_H_MASK;
+
+    pbyNameTable = PPUBANK[ nNameTable ] + nY * 32;
+    pAttrBase = PPUBANK[ nNameTable ] + 0x3c0 + ( nY / 4 ) * 8;
+
+    /*-------------------------------------------------------------------*/
+    /*  Rendering of the right table                                     */
+    /*-------------------------------------------------------------------*/
+
+    for ( nX = 0; nX < PPU_Scr_H_Byte; ++nX )
+    {
+      pbyChrData = PPU_BG_Base + ( *pbyNameTable << 6 ) + nYBit;
+      pPalTbl = &PalTable[ ( ( ( pAttrBase[ nX >> 2 ] >> ( ( nX & 2 ) + nY4 ) ) & 3 ) << 2 ) ];
+
+      pPoint[ 0 ] = pPalTbl[ pbyChrData[ 0 ] ]; 
+      pPoint[ 1 ] = pPalTbl[ pbyChrData[ 1 ] ];
+      pPoint[ 2 ] = pPalTbl[ pbyChrData[ 2 ] ];
+      pPoint[ 3 ] = pPalTbl[ pbyChrData[ 3 ] ];
+      pPoint[ 4 ] = pPalTbl[ pbyChrData[ 4 ] ];
+      pPoint[ 5 ] = pPalTbl[ pbyChrData[ 5 ] ];
+      pPoint[ 6 ] = pPalTbl[ pbyChrData[ 6 ] ];
+      pPoint[ 7 ] = pPalTbl[ pbyChrData[ 7 ] ];
+      pPoint += 8;
+
+      // Callback at PPU read/write
+      MapperPPU( PATTBL( pbyChrData ) );
+
+      ++pbyNameTable;
+    }
+
+    /*-------------------------------------------------------------------*/
+    /*  Rendering of the block of the right end                          */
+    /*-------------------------------------------------------------------*/
+
     pbyChrData = PPU_BG_Base + ( *pbyNameTable << 6 ) + nYBit;
     pPalTbl = &PalTable[ ( ( ( pAttrBase[ nX >> 2 ] >> ( ( nX & 2 ) + nY4 ) ) & 3 ) << 2 ) ];
-
-    pPoint[ 0 ] = pPalTbl[ pbyChrData[ 0 ] ]; 
-    pPoint[ 1 ] = pPalTbl[ pbyChrData[ 1 ] ];
-    pPoint[ 2 ] = pPalTbl[ pbyChrData[ 2 ] ];
-    pPoint[ 3 ] = pPalTbl[ pbyChrData[ 3 ] ];
-    pPoint[ 4 ] = pPalTbl[ pbyChrData[ 4 ] ];
-    pPoint[ 5 ] = pPalTbl[ pbyChrData[ 5 ] ];
-    pPoint[ 6 ] = pPalTbl[ pbyChrData[ 6 ] ];
-    pPoint[ 7 ] = pPalTbl[ pbyChrData[ 7 ] ];
-    pPoint += 8;
+    for ( nIdx = 0; nIdx < PPU_Scr_H_Bit; ++nIdx )
+    {
+      pPoint[ nIdx ] = pPalTbl[ pbyChrData[ nIdx ] ];
+    }
 
     // Callback at PPU read/write
     MapperPPU( PATTBL( pbyChrData ) );
 
-    ++pbyNameTable;
-  }
+    /*-------------------------------------------------------------------*/
+    /*  Backgroud Clipping                                               */
+    /*-------------------------------------------------------------------*/
+    if ( !( PPU_R1 & R1_CLIP_BG ) )
+    {
+      WORD *pPointTop;
 
-  /*-------------------------------------------------------------------*/
-  /*  Rendering of the block of the right end                          */
-  /*-------------------------------------------------------------------*/
+      pPointTop = &WorkFrame[ PPU_Scanline * NES_DISP_WIDTH ];
+      InfoNES_MemorySet( pPointTop, 0, 8 << 1 );
+    }
 
-  pbyChrData = PPU_BG_Base + ( *pbyNameTable << 6 ) + nYBit;
-  pPalTbl = &PalTable[ ( ( ( pAttrBase[ nX >> 2 ] >> ( ( nX & 2 ) + nY4 ) ) & 3 ) << 2 ) ];
-  for ( nIdx = 0; nIdx < PPU_Scr_H_Bit; ++nIdx )
-  {
-    pPoint[ nIdx ] = pPalTbl[ pbyChrData[ nIdx ] ];
-  }
+    /*-------------------------------------------------------------------*/
+    /*  Clear a scanline if up and down clipping flag is set             */
+    /*-------------------------------------------------------------------*/
+    if ( PPU_UpDown_Clip && 
+       ( SCAN_ON_SCREEN_START > PPU_Scanline || PPU_Scanline > SCAN_BOTTOM_OFF_SCREEN_START ) )
+    {
+      WORD *pPointTop;
 
-  // Callback at PPU read/write
-  MapperPPU( PATTBL( pbyChrData ) );
-
-  /*-------------------------------------------------------------------*/
-  /*  Backgroud Clipping                                               */
-  /*-------------------------------------------------------------------*/
-  if ( !( PPU_R1 & R1_CLIP_BG ) )
-  {
-    WORD *pPointTop;
-
-    pPointTop = &WorkFrame[ PPU_Scanline * NES_DISP_WIDTH ];
-    InfoNES_MemorySet( pPointTop, 0, 8 << 1 );
+      pPointTop = &WorkFrame[ PPU_Scanline * NES_DISP_WIDTH ];
+      InfoNES_MemorySet( pPointTop, 0, NES_DISP_WIDTH << 1 );
+    }  
   }
 
   /*-------------------------------------------------------------------*/

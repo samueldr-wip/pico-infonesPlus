@@ -187,11 +187,27 @@ void Map42_Init();
 void Map42_Write( WORD wAddr, BYTE byData );
 void Map42_HSync();
 
+void Map43_Init();
+void Map43_Write( WORD wAddr, BYTE byData );
+void Map43_Apu( WORD wAddr, BYTE byData );
+BYTE Map43_ReadApu( WORD wAddr );
+void Map43_HSync();
+
 void Map44_Init();
 void Map44_Write( WORD wAddr, BYTE byData );
 void Map44_HSync();
 void Map44_Set_CPU_Banks();
 void Map44_Set_PPU_Banks();
+
+void Map45_Init();
+void Map45_Sram( WORD wAddr, BYTE byData );
+void Map45_Write( WORD wAddr, BYTE byData );
+void Map45_HSync();
+void Map45_Set_CPU_Bank4( BYTE byData );
+void Map45_Set_CPU_Bank5( BYTE byData );
+void Map45_Set_CPU_Bank6( BYTE byData );
+void Map45_Set_CPU_Bank7( BYTE byData );
+void Map45_Set_PPU_Banks();
 
 void Map46_Init();
 void Map46_Sram( WORD wAddr, BYTE byData );

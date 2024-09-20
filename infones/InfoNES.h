@@ -137,7 +137,7 @@ extern BYTE PPU_UpDown_Clip;
 #define SCAN_VBLANK_START             243
 #define SCAN_VBLANK_END               262
 
-#define STEP_PER_SCANLINE             113
+#define STEP_PER_SCANLINE             112
 #define STEP_PER_FRAME                29828
 
 /* Develop Scroll Registers */
@@ -192,9 +192,13 @@ extern WORD FrameSkip;
 extern WORD FrameCnt;
 extern WORD FrameWait;
 
+#if 0
 extern WORD DoubleFrame[ 2 ][ NES_DISP_WIDTH * NES_DISP_HEIGHT ];
 extern WORD *WorkFrame;
 extern WORD WorkFrameIdx;
+#else
+extern WORD WorkFrame[ NES_DISP_WIDTH * NES_DISP_HEIGHT ];
+#endif
 
 extern BYTE ChrBuf[];
 

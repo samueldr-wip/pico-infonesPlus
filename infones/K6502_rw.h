@@ -93,7 +93,8 @@ static inline BYTE K6502_Read( WORD wAddr )
       {
         return SPRRAM[ PPU_R3++ ];
       }
-      else                            /* PPU Status */
+      else                            
+      if ( ( wAddr & 0x7 ) == 0x2 )   /* PPU Status */
       {
         // Set return value
         byRet = PPU_R2;
