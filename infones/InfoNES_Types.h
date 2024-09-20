@@ -2,13 +2,12 @@
 /*                                                                   */
 /*  InfoNES_Types.h : Type definitions for InfoNES                   */
 /*                                                                   */
-/*  2002/04/01  InfoNES GBA Project                                  */
-/*  1999/11/03  Racoon  New preparation                              */
+/*  2000/5/4    InfoNES Project ( based on pNesX )                   */
 /*                                                                   */
 /*===================================================================*/
 
-#ifndef INFONES_TYPES_H_INCLUDED
-#define INFONES_TYPES_H_INCLUDED
+#ifndef InfoNES_TYPES_H_INCLUDED
+#define InfoNES_TYPES_H_INCLUDED
 
 /*-------------------------------------------------------------------*/
 /*  Type definition                                                  */
@@ -32,4 +31,4 @@ typedef unsigned char  BYTE;
 #define NULL  0
 #endif /* !NULL */
 
-#endif /* !INFONES_TYPES_H_INCLUDED */
+#endif /* !InfoNES_TYPES_H_INCLUDED */

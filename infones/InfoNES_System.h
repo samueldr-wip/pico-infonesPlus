@@ -2,13 +2,12 @@
 /*                                                                   */
 /*  InfoNES_System.h : The function which depends on a system        */
 /*                                                                   */
-/*  2002/04/01  InfoNES GBA Project                                  */
-/*  1999/11/03  Racoon  New preparation                              */
+/*  2000/05/29  InfoNES Project ( based on pNesX )                   */
 /*                                                                   */
 /*===================================================================*/
 
-#ifndef INFONES_SYSTEM_H_INCLUDED
-#define INFONES_SYSTEM_H_INCLUDED
+#ifndef InfoNES_SYSTEM_H_INCLUDED
+#define InfoNES_SYSTEM_H_INCLUDED
 
 /*-------------------------------------------------------------------*/
 /*  Include files                                                    */
@@ -19,30 +18,7 @@
 /*-------------------------------------------------------------------*/
 /*  Palette data                                                     */
 /*-------------------------------------------------------------------*/
-extern const WORD NesPalette[];
-
-/*-------------------------------------------------------------------*/
-/*  Constants ( GBA specific )                                       */
-/*-------------------------------------------------------------------*/
-
-/* GBA display size */
-#define GBA_DISP_WIDTH      240
-#define GBA_DISP_HEIGHT     160
-
-/* Mode 4 specific*/
-#define FrontBuffer (u16*)0x6000000
-#define BackBuffer (u16*)0x600A000 //start of back buffer in Mode 4 
-
-/* For GCC */
-#define IN_EWRAM __attribute__ ((section (".text")))
-#define CODE_IN_IWRAM __attribute__ ((section (".bss"), long_call))
-
-/*-------------------------------------------------------------------*/
-/*  Variables ( GBA specific )                                       */
-/*-------------------------------------------------------------------*/
-
-/* Pointer to the current back buffer */
-extern WORD* videoBuffer;
+extern WORD NesPalette[];
 
 /*-------------------------------------------------------------------*/
 /*  Function prototypes                                              */
@@ -70,9 +46,24 @@ void *InfoNES_MemoryCopy( void *dest, const void *src, int count );
 void *InfoNES_MemorySet( void *dest, int c, int count );
 
 /* Print debug message */
-void InfoNES_DebugPrint( const char *pszMsg );
+void InfoNES_DebugPrint( char *pszMsg );
 
-/* Print debug message */
-void InfoNES_Debug();
+/* Wait */
+void InfoNES_Wait();
 
-#endif /* !INFONES_SYSTEM_H_INCLUDED */
+/* Sound Initialize */
+void InfoNES_SoundInit( void );
+
+/* Sound Open */
+int InfoNES_SoundOpen( int samples_per_sync, int sample_rate );
+
+/* Sound Close */
+void InfoNES_SoundClose( void );
+
+/* Sound Output 4 Waves - 2 Pulse, 1 Triangle, 1 Noise */
+void InfoNES_SoundOutput4(int samples, BYTE *wave1, BYTE *wave2, BYTE *wave3, BYTE *wave4);
+
+/* Print system message */
+void InfoNES_MessageBox( char *pszMsg );
+
+#endif /* !InfoNES_SYSTEM_H_INCLUDED */

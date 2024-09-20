@@ -1,178 +1,61 @@
 <html>
 <head>
 <title>
-InfoNES for GBA V0
+InfoNES for Win32 v0.78Jのソースコードについて
 </title>
 </head>
 <body>
 
-<h2>
-InfoNES for GBA V0
-</h2>
-
 <h3>
-はじめに
+InfoNES for Win32 v0.78Jのソースコードについて
 </h3>
 
-　InfoNES for GBAは，GameBoy Advance(TM)で動作する，ファミリーコンピュータ(TM)のエミュレータです．
-本リリースは，開発者向けに，ソースリストを公開し，ボランティアによるコメント，バグ修正等を意図したリリースです．
-現時点では，かなり遅いため，実機で遊ぶことは困難です．
-遊ぶことを目的にするのであれば，下記に示すエミュレータのご利用をおすすめします．
+<h4>はじめにお読みください</h4>
 
-<BR>
+　InfoNES for Win32 v0.78Jは，Windowsで動作するファミリーコンピュータ(TM)のエミュレータです．
 
-<UL>
-<LI><A HREF="http://nes.pocketheaven.com/">PocketNES</A></LI>
-<LI><A HREF="http://fca.ath.cx/">ファミコンアドバンス</A></LI>
-</UL>
-
-<h3>
-更新状況
-</h3>
-
-<h4>
-V0 (02/05/20)
-</h4>
-
-<UL>
-<LI> 開発者向けリリース </LI>
-</UL>
-
-<H3>
-仕様
-</H3>
-
-<H4>
-CPU
-</H4>
-
-<UL>
-<LI>6520オペコード</LI>
-<LI>IRQ/NMI</LI>
-</UL>
-
-<H4>
-PPU
-</H4>
-
-<UL>
-<LI>8x16, 8x8スプライト</LI>
-<LI>スプライトプライオリティ</LI>
-<LI>水平/垂直スクロール</LI>
-<LI>VROM/VRAM</LI>
-<LI>水平/垂直ミラーリング</LI>
-</UL>
-
-<H4>
-マッパ
-</H4>
-
-<UL>
-<LI>iNES   0,  2,  3</LI>
-<LI>ROMサイズ上限:   64KB</LI>
-</UL>
-
-<H3>
-操作方法
-</H3>
-
-<H4>
-コントローラ1
-</H4>
-
-<UL>
-<LI>[START] : スタート</LI>
-<LI>[SELECT] : セレクト</LI>
-<LI>[A] : Aボタン</LI>
-<LI>[B] : Bボタン</LI>
-<LI>[↑] : 上ボタン</LI>
-<LI>[↓] : 下ボタン</LI>
-<LI>[→] : 右ボタン</LI>
-<LI>[←] : 左ボタン</LI>
-</UL>
-
-<h3>配布条件</h3>
+<h4>配布条件</h4>
 
 　本プロジェクトは，オープンソース・プロジェクトです．GPL2( Gnu Public License version2 )の元で，ソースコードの再利用や変更や，再配布を行なうことが可能です．GPL2に関する詳細な情報は，同梱したファイルを参照ください(なお，日本語版は，<a href=http://www.sra.co.jp/public/doc/gnu/gpl-2j.txt>http://www.sra.co.jp/public/doc/gnu/gpl-2j.txt</a>から取得しました)．<br>
 
 <ul>
-<li> GPL2.txt: 正式なライセンス(英語版)
-<li> GPL2J.txt: 日本語による参考情報(日本語版)
+<li> GPL2: 正式なライセンス(英語版)
+<li> GPL2J: 日本語による参考情報(日本語版)
 </ul>
 
-<h3>動作確認</h3>
 
-<H4>実行方法</H4>
+<h4>免責</h4>
 
-<OL>
-<LI>任意のディレクトリ（C:\InfoNES_GBA_V0）にファイルを展開</LI>
-<LI>DOS窓を開いて，binディレクトリ（C:\InfoNES_GBA_V0\bin）に移動</LI>
-<LI>ROMファイル（sample.nes）を，binディレクトリ（C:\InfoNES_GBA_V0\bin）にコピー</LI>
-<LI>エミュレータROMファイル（InfoNES.mb.gba）に，ROMファイルを書き込む（"./kakipee.exe sample.nes"とタイプ）</LI>
-<LI>ROMファイルを書き込んだエミュレータROMファイルを，GBAエミュレータ（<A HREF="http://vboy.emuhq.com/">VisualBoyAdvance version 0.9a</A>）から実行</LI>
-</OL>
-
-<H4>コンパイル方法</H4>
-
-<OL>
-<LI><A HREF="http://pitel-lnx.uvis.fnt.hvu.nl/~drkfdr/gba/main.html#mylib">DevKitAdvance</A>をインストール</LI>
-<LI>DOS窓を開いて，src\InfoNES_Advanceディレクトリ（C:\InfoNES_GBA_V0\src\InfoNES_Advance）に移動</LI>
-<LI>エミュレータROMファイルを生成（"make"とタイプ）</LI>
-</OL>
-
-<H3>
-免責
-</H3>
-
-　InfoNES for GBAは，フリーウェアです．また，いかなる保証もありません．
+　InfoNESは，フリーウェアです．また，いかなる保証もありません．
 本ソフトウェアによって生じた損害等に関して，作者は一切責任を負いません．
-InfoNESに関する情報やアップデートについては，<A HREF="http://www.geocities.co.jp/SiliconValley/5604/">Jay's Factory</A>を参照ください．
-よりよいソフトウェアを目指すために，御利用いただいた皆様からの御意見，御要望，バグ報告等を，下記の連絡先で御待ちしています．
+InfoNESに関する情報やアップデートについては，公式ページ(Jay's Factory)を参照ください．<br><br>
 
-<BR><BR>
+　なお，ファミリーコンピュータ(TM)は，任天堂社の登録商標です．
+また，Windows(TM)は，米国Microsoft社の登録商標です．
 
-　なお，GameBoy Advance(TM)，ファミリーコンピューター(TM)は，任天堂の登録商標です．
+<h4>連絡先</h4>
+<ul>
+<li><a href=http://www.geocities.co.jp/SiliconValley/5604/>Jay's Factory</a></li>
+<li><a href="mailto: Jays_Factory@excite.co.jp">電子メール</a></li>
+<li><a href="http://ps2linux.plala.jp/harmeln/cgi-bin/bbs/wforum.cgi">掲示板</a></li>
+</ul>
 
-<H3>
-連絡先
-</H3>
-
-<UL>
-<LI>電子メール: <A HREF="mailto: jays_factory@excite.co.jp">jays_factory@excite.co.jp</A></LI>
-<LI>掲示板: <A HREF="http://ps2linux.plala.jp/harmeln/cgi-bin/bbs/wforum.cgi">
-http://ps2linux.plala.jp/harmeln/cgi-bin/bbs/wforum.cgi</A></LI>
-</UL>
-
-<H3>
-注意事項
-</H3>
+<h4>謝辞</h4>
+　本プログラムを作成する際に，下記のプログラム，および，資料を参考にさせていただきました．
+作者の皆様に，御礼を申し上げます．<br>
 
 <UL>
-<LI>ROMイメージを書き込み後のエミュレータROMファイルの再配布は，御遠慮ください</LI>
-<LI>本ソフトウェアを再配布，転載する際には，事前に御連絡ください</LI>
-<LI>ROMイメージは，各自御用意下さい</LI>
-<LI>ROMイメージの入手方法に関する御質問は，御遠慮ください</LI>
+<LI> [1] pNesX, <A HREF="http://members.nbci.com/pnesx/"> 
+http://members.nbci.com/pnesx/</A></LI>
+<LI> [2] DarcNES, <A HREF="http://www.netway.com/~nyef/">
+http://www.netway.com/~nyef/</A></LI>
+<LI> [3] nesterJ, <A HREF="http://www.dcn.ne.jp/~otim2/nesterj-e.html">
+http://www.dcn.ne.jp/~otim2/nesterj-e.html</A></LI>
 </UL>
 
-<H3>
-謝辞
-</H3>
+<hr>
 
-　本プログラムを作成するにあたり，開発環境と機材を提供してくださいました織田（TeamKNOx）氏と，掲示板などを提供してくださいましたはーめるん氏に感謝します．
-また，エミュレータ開発について議論にいただいた某吉氏に感謝します．
+Copyright (c) 1999-2002 Jay's Factory, All rights reserved.<br>
 
-<BR><BR>
-
-　本プログラムを作成する際に，下記のプログラムを参考にさせていただきました．
-この場を借りて，作者の方に，御礼を申し上げます．
-
-<UL>
-<LI><A HREF="http://www.megagames.com/news/html/emulators/pnesx.shtml">pNesX</A></LI>
-</UL>
-
-<HR>
-
-Copyright (c) 2002 Jay's Factory. All Rights Reserved. 
-
-</BODY>
-</HTML>
+</body>
+</html>

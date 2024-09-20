@@ -1,14 +1,13 @@
 /*===================================================================*/
 /*                                                                   */
-/*  InfoNES.h : NES Emulator for GBA                                 */
+/*  InfoNES.h : NES Emulator for Win32, Linux(x86), Linux(PS2)       */
 /*                                                                   */
-/*  2002/04/01  InfoNES GBA Project                                  */
-/*  1999/11/03  Racoon  New preparation                              */
+/*  2000/05/14  InfoNES Project ( based on pNesX )                   */
 /*                                                                   */
 /*===================================================================*/
 
-#ifndef INFONES_H_INCLUDED
-#define INFONES_H_INCLUDED
+#ifndef InfoNES_H_INCLUDED
+#define InfoNES_H_INCLUDED
 
 /*-------------------------------------------------------------------*/
 /*  Include files                                                    */
@@ -33,6 +32,9 @@ extern BYTE SRAM[];
 
 /* ROM */
 extern BYTE *ROM;
+
+/* SRAM BANK ( 8Kb ) */
+extern BYTE *SRAMBANK;
 
 /* ROM BANK ( 8Kb * 4 ) */
 extern BYTE *ROMBANK0;
@@ -96,7 +98,11 @@ extern BYTE PPU_Scr_H_Bit_Next;
 
 extern BYTE PPU_Latch_Flag;
 extern WORD PPU_Addr;
+extern WORD PPU_Temp;
 extern WORD PPU_Increment;
+
+extern BYTE PPU_Latch_Flag;
+extern BYTE PPU_UpDown_Clip;
 
 #define R0_NMI_VB      0x80
 #define R0_NMI_SP      0x40
@@ -131,14 +137,28 @@ extern WORD PPU_Increment;
 #define SCAN_VBLANK_START             243
 #define SCAN_VBLANK_END               262
 
+#define STEP_PER_SCANLINE             113
+#define STEP_PER_FRAME                29828
+
+/* Develop Scroll Registers */
+#define InfoNES_SetupScr() \
+{ \
+  /* V-Scroll Register */ \
+  PPU_Scr_V_Next = ( BYTE )( PPU_Addr & 0x001f ); \
+  PPU_Scr_V_Byte_Next = PPU_Scr_V_Next >> 3; \
+  PPU_Scr_V_Bit_Next = PPU_Scr_V_Next & 0x07; \
+  \
+  /* H-Scroll Register */ \
+  PPU_Scr_H_Next = ( BYTE )( ( PPU_Addr & 0x03e0 ) >> 5 ); \
+  PPU_Scr_H_Byte_Next = PPU_Scr_H_Next >> 3; \
+  PPU_Scr_H_Bit_Next = PPU_Scr_H_Next & 0x07; \
+}
+
 /* Current Scanline */
 extern WORD PPU_Scanline;
 
 /* Scanline Table */
 extern BYTE PPU_ScanTable[];
-
-/* Scanline Table for Scaling */
-extern BYTE PPU_ScalingTable[];
 
 /* Name Table Bank */
 extern BYTE PPU_NameTableBank;
@@ -154,7 +174,14 @@ extern WORD PPU_SP_Height;
 
 /* NES display size */
 #define NES_DISP_WIDTH      256
-#define NES_DISP_HEIGHT     224
+#define NES_DISP_HEIGHT     240
+
+/* VRAM Write Enable ( 0: Disable, 1: Enable ) */
+extern BYTE byVramWriteEnable;
+
+/* Frame IRQ ( 0: Disabled, 1: Enabled )*/
+extern BYTE FrameIRQ_Enable;
+extern WORD FrameStep;
 
 /*-------------------------------------------------------------------*/
 /*  Display and Others resouces                                      */
@@ -163,20 +190,17 @@ extern WORD PPU_SP_Height;
 /* Frame Skip */
 extern WORD FrameSkip;
 extern WORD FrameCnt;
+extern WORD FrameWait;
 
-#if 0
-extern WORD WorkFrame[ NES_DISP_WIDTH * NES_DISP_HEIGHT ];
-#endif
+extern WORD DoubleFrame[ 2 ][ NES_DISP_WIDTH * NES_DISP_HEIGHT ];
+extern WORD *WorkFrame;
+extern WORD WorkFrameIdx;
 
 extern BYTE ChrBuf[];
 
 extern BYTE ChrBufUpdate;
 
-#if 0
 extern WORD PalTable[];
-#else
-extern BYTE PalTable[];
-#endif
 
 /*-------------------------------------------------------------------*/
 /*  APU and Pad resources                                            */
@@ -208,10 +232,20 @@ extern DWORD PAD2_Bit;
 extern void (*MapperInit)();
 /* Write to Mapper */
 extern void (*MapperWrite)( WORD wAddr, BYTE byData );
+/* Write to SRAM */
+extern void (*MapperSram)( WORD wAddr, BYTE byData );
+/* Write to APU */
+extern void (*MapperApu)( WORD wAddr, BYTE byData );
+/* Read from Apu */
+extern BYTE (*MapperReadApu)( WORD wAddr );
 /* Callback at VSync */
 extern void (*MapperVSync)();
 /* Callback at HSync */
 extern void (*MapperHSync)();
+/* Callback at PPU read/write */
+extern void (*MapperPPU)( WORD wAddr );
+/* Callback at Rendering Screen 1:BG, 0:Sprite */
+extern void (*MapperRenderScreen)( BYTE byMode );
 
 /*-------------------------------------------------------------------*/
 /*  ROM information                                                  */
@@ -280,4 +314,4 @@ void InfoNES_GetSprHitY();
 /* Develop character data */
 void InfoNES_SetupChr();
 
-#endif /* !INFONES_H_INCLUDED */
+#endif /* !InfoNES_H_INCLUDED */

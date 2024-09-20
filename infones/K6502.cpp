@@ -2,8 +2,7 @@
 /*                                                                   */
 /*  K6502.cpp : 6502 Emulator                                        */
 /*                                                                   */
-/*  2002/04/01  InfoNES GBA Project                                  */
-/*  1999/10/19  Racoon  New preparation                              */
+/*  2000/5/10   InfoNES Project ( based on pNesX )                   */
 /*                                                                   */
 /*===================================================================*/
 
@@ -12,8 +11,6 @@
 /*-------------------------------------------------------------------*/
 
 #include "K6502.h"
-#include "InfoNES.h"
-#include "InfoNES_System.h"
 
 /*-------------------------------------------------------------------*/
 /*  Operation Macros                                                 */
@@ -69,35 +66,17 @@
 #define TEST(a)  RSTF( FLAG_N | FLAG_Z ); SETF( g_byTestTable[ a ] )
 
 // Load & Store Op.
-#if 0
 #define STA(a)    K6502_Write( (a), A );
 #define STX(a)    K6502_Write( (a), X );
 #define STY(a)    K6502_Write( (a), Y );
-#else
-#define STA(a)    K6502_Write( (WORD)(a), A );
-#define STX(a)    K6502_Write( (WORD)(a), X );
-#define STY(a)    K6502_Write( (WORD)(a), Y );
-#endif
-#define STAZ(a)    K6502_WriteZp( (a), A );
-#define STXZ(a)    K6502_WriteZp( (a), X );
-#define STYZ(a)    K6502_WriteZp( (a), Y );
-
 #define LDA(a)    A = (a); TEST( A );
 #define LDX(a)    X = (a); TEST( X );
 #define LDY(a)    Y = (a); TEST( Y );
 
 // Stack Op.
-#if 0
 #define PUSH(a)   K6502_Write( BASE_STACK + SP--, (a) )
-#else
-#define PUSH(a)   K6502_WriteSp( SP--, (a) )
-#endif
 #define PUSHW(a)  PUSH( (a) >> 8 ); PUSH( (a) & 0xff )
-#if 0
 #define POP(a)    a = K6502_Read( BASE_STACK + ++SP )
-#else
-#define POP(a)    a = K6502_ReadSp( ++SP )
-#endif
 #define POPW(a)   POP(a); a |= ( K6502_Read( BASE_STACK + ++SP ) << 8 )
 
 // Logical Op.
@@ -138,24 +117,8 @@
 #define ROR(a)  byD1 = F & FLAG_C; RSTF( FLAG_N | FLAG_Z | FLAG_C ); wA0 = a; byD0 = K6502_Read( wA0 ); SETF( g_RORTable[ byD1 ][ byD0 ].byFlag ); K6502_Write( wA0, g_RORTable[ byD1 ][ byD0 ].byValue )
 
 // Jump Op.
-#define JSR     wA0 = AA_ABS2; PUSHW( PC ); PC = wA0;
-#if 0
+#define JSR     wA0 = AA_ABS2; PUSHW( PC ); PC = wA0; 
 #define BRA(a)  if ( a ) { wA0 = PC; PC += (char)K6502_Read( PC ); CLK( 3 + ( ( wA0 & 0x0100 ) != ( PC & 0x0100 ) ) ); ++PC; } else { ++PC; CLK( 2 ); }
-#else
-#define BRA(a) { \
-  if ( a ) \
-  { \
-    wA0 = PC; \
-	byD0 = K6502_Read( PC ); \
-	PC += ( ( byD0 & 0x80 ) ? ( 0xFF00 | (WORD)byD0 ) : (WORD)byD0 ); \
-	CLK( 3 + ( ( wA0 & 0x0100 ) != ( PC & 0x0100 ) ) ); \
-    ++PC; \
-  } else { \
-	++PC; \
-	CLK( 2 ); \
-  } \
-}
-#endif
 #define JMP(a)  PC = a;
 
 /*-------------------------------------------------------------------*/
@@ -196,16 +159,16 @@ struct value_table_tag
 };
 
 // A table for ASL
-struct value_table_tag g_ASLTable[ 256 ] IN_EWRAM;
+struct value_table_tag g_ASLTable[ 256 ];
 
 // A table for LSR
-struct value_table_tag g_LSRTable[ 256 ] IN_EWRAM;
+struct value_table_tag g_LSRTable[ 256 ];
 
 // A table for ROL
-struct value_table_tag g_ROLTable[ 2 ][ 256 ] IN_EWRAM;
+struct value_table_tag g_ROLTable[ 2 ][ 256 ];
 
 // A table for ROR
-struct value_table_tag g_RORTable[ 2 ][ 256 ] IN_EWRAM;
+struct value_table_tag g_RORTable[ 2 ][ 256 ];
 
 /*===================================================================*/
 /*                                                                   */
@@ -425,7 +388,7 @@ void K6502_Step( WORD wClocks )
   // It has a loop until a constant clock passes
   while ( g_wPassedClocks < wClocks )
   {
-	// Read an instruction
+    // Read an instruction
     byCode = K6502_Read( PC++ );
 
     // Execute an instruction.
@@ -576,8 +539,8 @@ void K6502_Step( WORD wClocks )
         break;
 
       case 0x40: // RTI
-        POP( F ); SETF( FLAG_R ); POPW( PC ); CLK( 6 );		
-				break;
+        POP( F ); SETF( FLAG_R ); POPW( PC ); CLK( 6 );
+        break;
 
       case 0x41: // EOR (Zpg,X)
         EOR( A_IX ); CLK( 6 );
@@ -694,7 +657,7 @@ void K6502_Step( WORD wClocks )
         break;
 
       case 0x6C: // JMP (Abs)
-        JMP( K6502_ReadW( AA_ABS ) ); CLK( 5 );
+        JMP( K6502_ReadW2( AA_ABS ) ); CLK( 5 );
         break;
 
       case 0x6D: // ADC Abs
@@ -741,16 +704,16 @@ void K6502_Step( WORD wClocks )
         STA( AA_IX ); CLK( 6 );
         break;
       
-      case 0x84: // STY Zpg (*)
-        STYZ( AA_ZP ); CLK( 3 );
+      case 0x84: // STY Zpg
+        STY( AA_ZP ); CLK( 3 );
         break;
 
-      case 0x85: // STA Zpg (*)
-        STAZ( AA_ZP ); CLK( 3 );
-				break;
+      case 0x85: // STA Zpg
+        STA( AA_ZP ); CLK( 3 );
+        break;
 
-      case 0x86: // STX Zpg (*)
-        STXZ( AA_ZP ); CLK( 3 );
+      case 0x86: // STX Zpg
+        STX( AA_ZP ); CLK( 3 );
         break;
 
       case 0x88: // DEY
@@ -781,16 +744,16 @@ void K6502_Step( WORD wClocks )
         STA( AA_IY ); CLK( 6 );
         break;
 
-      case 0x94: // STY Zpg,X (*)
-        STYZ( AA_ZPX ); CLK( 4 );
+      case 0x94: // STY Zpg,X
+        STY( AA_ZPX ); CLK( 4 );
         break;
 
-      case 0x95: // STA Zpg,X (*)
-        STAZ( AA_ZPX ); CLK( 4 );
+      case 0x95: // STA Zpg,X
+        STA( AA_ZPX ); CLK( 4 );
         break;
 
-      case 0x96: // STX Zpg,Y (*)
-        STXZ( AA_ZPY ); CLK( 4 );
+      case 0x96: // STX Zpg,Y
+        STX( AA_ZPY ); CLK( 4 );
         break;
 
       case 0x98: // TYA
@@ -802,8 +765,8 @@ void K6502_Step( WORD wClocks )
         break;
 
       case 0x9A: // TXS
-        SP = X; CLK( 2 );      
-				break;
+        SP = X; CLK( 2 );
+        break;
 
       case 0x9D: // STA Abs,X
         STA( AA_ABSX ); CLK( 5 );
@@ -1023,7 +986,7 @@ void K6502_Step( WORD wClocks )
 
       case 0xF0: // BEQ
         BRA( F & FLAG_Z );
-				break;
+        break;
 
       case 0xF1: // SBC (Zpg),Y
         SBC( A_IY ); CLK( 5 );
@@ -1080,4 +1043,3 @@ static inline BYTE K6502_ReadIY(){ WORD wA0, wA1; wA0 = K6502_ReadZpW( K6502_Rea
 /*                                                                   */
 /*===================================================================*/
 #include "K6502_rw.h"
-

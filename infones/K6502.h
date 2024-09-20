@@ -2,8 +2,7 @@
 /*                                                                   */
 /*  K6502.h : Header file for K6502                                  */
 /*                                                                   */
-/*  2002/04/01  InfoNES GBA Project                                  */
-/*  1999/10/19  Racoon  New preparation                              */
+/*  2000/05/29  InfoNES Project ( based on pNesX )                   */
 /*                                                                   */
 /*===================================================================*/
 
@@ -60,6 +59,7 @@ void K6502_Step( register WORD wClocks );
 // I/O Operation (User definition)
 static inline BYTE K6502_Read( WORD wAddr);
 static inline WORD K6502_ReadW( WORD wAddr );
+static inline WORD K6502_ReadW2( WORD wAddr );
 static inline BYTE K6502_ReadZp( BYTE byAddr );
 static inline WORD K6502_ReadZpW( BYTE byAddr );
 static inline BYTE K6502_ReadAbsX();
@@ -69,15 +69,13 @@ static inline BYTE K6502_ReadIY();
 static inline void K6502_Write( WORD wAddr, BYTE byData );
 static inline void K6502_WriteW( WORD wAddr, WORD wData );
 
-// I/O Operation Macro
-#define K6502_ReadSp(a)				RAM[ BASE_STACK + (a) ]
-#define K6502_WriteSp(a,d)		RAM[ BASE_STACK + (a) ] = (d)
-#define K6502_WriteZp(a,d)		RAM[ (a) ] = (d)
-
 // The state of the IRQ pin
 extern BYTE IRQ_State;
 
 // The state of the NMI pin
 extern BYTE NMI_State;
+
+// The number of the clocks that it passed
+extern WORD g_wPassedClocks;
 
 #endif /* !K6502_H_INCLUDED */

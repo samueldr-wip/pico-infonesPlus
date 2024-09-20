@@ -3,8 +3,7 @@
 /*  K6502_RW.h : 6502 Reading/Writing Operation for NES              */
 /*               This file is included in K6502.cpp                  */
 /*                                                                   */
-/*  2002/04/01  InfoNES GBA Project                                  */
-/*  1999/11/03  Racoon  New preparation                              */
+/*  2000/5/23   InfoNES Project ( based on pNesX )                   */
 /*                                                                   */
 /*===================================================================*/
 
@@ -17,6 +16,7 @@
 
 #include "InfoNES.h"
 #include "InfoNES_System.h"
+#include "InfoNES_pAPU.h"
 
 /*===================================================================*/
 /*                                                                   */
@@ -64,7 +64,6 @@ static inline BYTE K6502_Read( WORD wAddr )
  *    0x8000 - 0xffff  ROM
  *
  */
-
   BYTE byRet;
 
   switch ( wAddr & 0xe000 )
@@ -73,9 +72,30 @@ static inline BYTE K6502_Read( WORD wAddr )
       return RAM[ wAddr & 0x7ff ];
 
     case 0x2000:  /* PPU */
-      if ( wAddr <= 0x2006 )  /* PPU Status */
+      if ( ( wAddr & 0x7 ) == 0x7 )   /* PPU Memory */
       {
-				// Set return value
+        WORD addr = PPU_Addr;
+
+        // Increment PPU Address
+        PPU_Addr += PPU_Increment;
+        addr &= 0x3fff;
+
+        // Set return value;
+        byRet = PPU_R7;
+
+        // Read PPU Memory
+        PPU_R7 = PPUBANK[ addr >> 10 ][ addr & 0x3ff ];
+
+        return byRet;
+      }
+      else
+      if ( ( wAddr & 0x7 ) == 0x4 )   /* SPR_RAM I/O Register */
+      {
+        return SPRRAM[ PPU_R3++ ];
+      }
+      else                            /* PPU Status */
+      {
+        // Set return value
         byRet = PPU_R2;
 
         // Reset a V-Blank flag
@@ -90,39 +110,17 @@ static inline BYTE K6502_Read( WORD wAddr )
           PPU_R0 &= ~R0_NAME_ADDR;
           PPU_NameTableBank = NAME_TABLE0;
         }
-
-        return byRet;
-      }
-      else
-      if ( wAddr == 0x2007 )  /* PPU Memory */
-      {
-        // Set return value;
-        byRet = PPU_R7;
-
-        // Read PPU Memory
-        PPU_R7 = PPUBANK[ PPU_Addr >> 10 ][ PPU_Addr & 0x3ff ];
-
-        // Increment PPU Address
-        PPU_Addr += PPU_Increment;
-        PPU_Addr &= 0x3fff;
-
         return byRet;
       }
       break;
 
     case 0x4000:  /* Sound */
-      if ( wAddr < 0x4016 )
+      if ( wAddr == 0x4015 )
       {
-        if ( wAddr == 0x4015 )
-        {
-          // "DragonQuest" doesn't run if bit6 isn't being set.
-          return APU_Reg[ 0x15 ] ^= 0xff;
-        }
-        else
-        {
-          // Return APU Register
-          return APU_Reg[ wAddr & 0x1f ];
-        }
+        // APU control
+        byRet = APU_Reg[ 0x4015 ];
+        APU_Reg[ 0x4015 ] &= ~0x40;
+        return byRet;
       }
       else
       if ( wAddr == 0x4016 )
@@ -140,10 +138,21 @@ static inline BYTE K6502_Read( WORD wAddr )
         PAD2_Bit = ( PAD2_Bit == 23 ) ? 0 : ( PAD2_Bit + 1 );
         return byRet;
       }
+      else 
+      {
+        /* Return Mapper Register*/
+        return MapperReadApu( wAddr );
+      }
       break;
+      // The other sound registers are not readable.
 
     case 0x6000:  /* SRAM */
-      return SRAM[ wAddr & 0x1fff ];
+      if ( ROM_SRAM )
+      {
+        return SRAM[ wAddr & 0x1fff ];
+      } else {    /* SRAM BANK */
+        return SRAMBANK[ wAddr & 0x1fff ];
+      }
 
     case 0x8000:  /* ROM BANK 0 */
       return ROMBANK0[ wAddr & 0x1fff ];
@@ -158,12 +167,13 @@ static inline BYTE K6502_Read( WORD wAddr )
       return ROMBANK3[ wAddr & 0x1fff ];
   }
 
-  return 0;
+  return ( wAddr >> 8 ); /* when a register is not readable the upper half
+                            address is returned. */
 }
 
 /*===================================================================*/
 /*                                                                   */
-/*               K6502_Write() : Writing operation                   */
+/*               K6502_Write() : Writing operation                    */
 /*                                                                   */
 /*===================================================================*/
 static inline void K6502_Write( WORD wAddr, BYTE byData )
@@ -203,6 +213,9 @@ static inline void K6502_Write( WORD wAddr, BYTE byData )
           PPU_BG_Base = ( PPU_R0 & R0_BG_ADDR ) ? ChrBuf + 256 * 64 : ChrBuf;
           PPU_SP_Base = ( PPU_R0 & R0_SP_ADDR ) ? ChrBuf + 256 * 64 : ChrBuf;
           PPU_SP_Height = ( PPU_R0 & R0_SP_SIZE ) ? 16 : 8;
+
+          // Account for Loopy's scrolling discoveries
+		      PPU_Temp = ( PPU_Temp & 0xF3FF ) | ( ( ( (WORD)byData ) & 0x0003 ) << 10 );
           break;
 
         case 1:   /* 0x2001 */
@@ -210,7 +223,9 @@ static inline void K6502_Write( WORD wAddr, BYTE byData )
           break;
 
         case 2:   /* 0x2002 */
-          PPU_R2 = byData;
+#if 0	  
+          PPU_R2 = byData;     // 0x2002 is not writable
+#endif
           break;
 
         case 3:   /* 0x2003 */
@@ -231,6 +246,10 @@ static inline void K6502_Write( WORD wAddr, BYTE byData )
             PPU_Scr_V_Next = ( byData > 239 ) ? 0 : byData;
             PPU_Scr_V_Byte_Next = PPU_Scr_V_Next >> 3;
             PPU_Scr_V_Bit_Next = PPU_Scr_V_Next & 7;
+
+            // Added : more Loopy Stuff
+			      PPU_Temp = ( PPU_Temp & 0xFC1F ) | ( ( ( (WORD)byData ) & 0xF8 ) << 2);
+			      PPU_Temp = ( PPU_Temp & 0x8FFF ) | ( ( ( (WORD)byData ) & 0x07 ) << 12);
           }
           else
           {
@@ -238,6 +257,9 @@ static inline void K6502_Write( WORD wAddr, BYTE byData )
             PPU_Scr_H_Next = byData;
             PPU_Scr_H_Byte_Next = PPU_Scr_H_Next >> 3;
             PPU_Scr_H_Bit_Next = PPU_Scr_H_Next & 7;
+
+            // Added : more Loopy Stuff
+			      PPU_Temp = ( PPU_Temp & 0xFFE0 ) | ( ( ( (WORD)byData ) & 0xF8 ) >> 3 );
           }
           PPU_Latch_Flag ^= 1;
           break;
@@ -246,52 +268,66 @@ static inline void K6502_Write( WORD wAddr, BYTE byData )
           // Set PPU Address
           if ( PPU_Latch_Flag )
           {
-            // Low
-            PPU_Addr |= byData;
+            /* Low */
+#if 0
+            PPU_Addr = ( PPU_Addr & 0xff00 ) | ( (WORD)byData );
+#else
+            PPU_Temp = ( PPU_Temp & 0xFF00 ) | ( ( (WORD)byData ) & 0x00FF);
+			      PPU_Addr = PPU_Temp;
+#endif
+            InfoNES_SetupScr();
           }
           else
           {
-            // High
-            PPU_Addr = ( byData & 0x3f ) << 8;
+            /* High */
+#if 0
+            PPU_Addr = ( PPU_Addr & 0x00ff ) | ( (WORD)( byData & 0x3f ) << 8 );
+            InfoNES_SetupScr();
+#else
+            PPU_Temp = ( PPU_Temp & 0x00FF ) | ( ( ((WORD)byData) & 0x003F ) << 8 );
+#endif            
           }
           PPU_Latch_Flag ^= 1;
           break;
 
         case 7:   /* 0x2007 */
-          // Write to PPU Memory
-          if ( PPU_Addr < 0x2000 && NesHeader.byVRomSize == 0 )
           {
-            // Pattern Data
-            ChrBufUpdate |= ( 1 << ( PPU_Addr >> 10 ) );
-            PPURAM[ PPU_Addr ] = byData;
-          }
-          else
-          if ( PPU_Addr < 0x3f00 )  /* 0x2000 - 0x3eff */
-          {
-            // Name Table
-            PPUBANK[ PPU_Addr >> 10 ][ PPU_Addr & 0x3ff ] = byData;
-          }
-          else
-          if ( !( PPU_Addr & 0xf ) )  /* 0x3f00 or 0x3f10 */
-          {
-            // Palette mirror
-            PPURAM[ 0x3f10 ] = PPURAM[ 0x3f14 ] = PPURAM[ 0x3f18 ] = PPURAM[ 0x3f1c ] = 
-            PPURAM[ 0x3f00 ] = PPURAM[ 0x3f04 ] = PPURAM[ 0x3f08 ] = PPURAM[ 0x3f0c ] = byData;
+            WORD addr = PPU_Addr;
+            
+            // Increment PPU Address
+            PPU_Addr += PPU_Increment;
+            addr &= 0x3fff;
 
-            PalTable[ 0x00 ] = PalTable[ 0x04 ] = PalTable[ 0x08 ] = PalTable[ 0x0c ] =
-            PalTable[ 0x10 ] = PalTable[ 0x14 ] = PalTable[ 0x18 ] = PalTable[ 0x1c ] = byData | 0x80;
-					}
-          else
-          if ( PPU_Addr & 3 )
-          {
-            // Palette
-            PPURAM[ PPU_Addr ] = byData;
-            PalTable[ PPU_Addr & 0x1f ] = byData;    
-					}
-
-          // Increment PPU Address
-          PPU_Addr += PPU_Increment;
-          PPU_Addr &= 0x3fff;
+            // Write to PPU Memory
+            if ( addr < 0x2000 && byVramWriteEnable )
+            {
+              // Pattern Data
+              ChrBufUpdate |= ( 1 << ( addr >> 10 ) );
+              PPUBANK[ addr >> 10 ][ addr & 0x3ff ] = byData;
+            }
+            else
+            if ( addr < 0x3f00 )  /* 0x2000 - 0x3eff */
+            {
+              // Name Table
+              PPUBANK[ addr >> 10 ][ addr & 0x3ff ] = byData;
+            }
+            else
+            if ( !( addr & 0xf ) )  /* 0x3f00 or 0x3f10 */
+            {
+              // Palette mirror
+              PPURAM[ 0x3f10 ] = PPURAM[ 0x3f14 ] = PPURAM[ 0x3f18 ] = PPURAM[ 0x3f1c ] = 
+              PPURAM[ 0x3f00 ] = PPURAM[ 0x3f04 ] = PPURAM[ 0x3f08 ] = PPURAM[ 0x3f0c ] = byData;
+              PalTable[ 0x00 ] = PalTable[ 0x04 ] = PalTable[ 0x08 ] = PalTable[ 0x0c ] =
+              PalTable[ 0x10 ] = PalTable[ 0x14 ] = PalTable[ 0x18 ] = PalTable[ 0x1c ] = NesPalette[ byData ] | 0x8000;
+            }
+            else
+            if ( addr & 3 )
+            {
+              // Palette
+              PPURAM[ addr ] = byData;
+              PalTable[ addr & 0x1f ] = NesPalette[ byData ];
+            }
+          }
           break;
       }
       break;
@@ -299,6 +335,26 @@ static inline void K6502_Write( WORD wAddr, BYTE byData )
     case 0x4000:  /* Sound */
       switch ( wAddr & 0x1f )
       {
+        case 0x00:
+        case 0x01:
+        case 0x02:
+        case 0x03:          
+        case 0x04:
+        case 0x05:
+        case 0x06:
+        case 0x07:
+        case 0x08:
+        case 0x09:
+        case 0x0a:
+        case 0x0b:
+        case 0x0c:
+        case 0x0d:
+        case 0x0e:
+        case 0x0f:
+          // Call Function corresponding to Sound Registers 
+          pAPUSoundRegs[ wAddr & 0x0f ]( wAddr, byData );
+          break;
+
         case 0x14:  /* 0x4014 */
           // Sprite DMA
           switch ( byData >> 5 )
@@ -329,6 +385,17 @@ static inline void K6502_Write( WORD wAddr, BYTE byData )
           }
           break;
 
+        case 0x15:  /* 0x4015 */
+          InfoNES_pAPUWriteControl( wAddr, byData );
+#if 0
+          /* Unknown */
+          if ( byData & 0x10 ) 
+          {
+			      byData &= ~0x80;
+		      }
+#endif
+          break;
+
         case 0x16:  /* 0x4016 */
           // Reset joypad
           if ( !( APU_Reg[ 0x16 ] & 1 ) && ( byData & 1 ) )
@@ -337,17 +404,39 @@ static inline void K6502_Write( WORD wAddr, BYTE byData )
             PAD2_Bit = 0;
           }
           break;
+
+        case 0x17:  /* 0x4017 */
+          // Frame IRQ
+          FrameStep = 0;
+          if ( !( byData & 0xc0 ) )
+          {
+            FrameIRQ_Enable = 1;
+          } else {
+            FrameIRQ_Enable = 0;
+          }
+          break;
       }
 
       if ( wAddr <= 0x4017 )
       {
-        // Write to APU Register
+        /* Write to APU Register */
         APU_Reg[ wAddr & 0x1f ] = byData;
+      }
+      else
+      {
+        /* Write to APU */
+        MapperApu( wAddr, byData );
       }
       break;
 
     case 0x6000:  /* SRAM */
       SRAM[ wAddr & 0x1fff ] = byData;
+
+      /* Write to SRAM, when no SRAM */
+      if ( !ROM_SRAM )
+      {
+        MapperSram( wAddr, byData );
+      }
       break;
 
     case 0x8000:  /* ROM BANK 0 */
@@ -364,5 +453,16 @@ static inline void K6502_Write( WORD wAddr, BYTE byData )
 static inline WORD K6502_ReadW( WORD wAddr ){ return K6502_Read( wAddr ) | (WORD)K6502_Read( wAddr + 1 ) << 8; };
 static inline void K6502_WriteW( WORD wAddr, WORD wData ){ K6502_Write( wAddr, wData & 0xff ); K6502_Write( wAddr + 1, wData >> 8 ); };
 static inline WORD K6502_ReadZpW( BYTE byAddr ){ return K6502_ReadZp( byAddr ) | ( K6502_ReadZp( byAddr + 1 ) << 8 ); };
+
+// 6502's indirect absolute jmp(opcode: 6C) has a bug (added at 01/08/15 )
+static inline WORD K6502_ReadW2( WORD wAddr )
+{ 
+  if ( 0x00ff == ( wAddr & 0x00ff ) )
+  {
+    return K6502_Read( wAddr ) | (WORD)K6502_Read( wAddr - 0x00ff ) << 8;
+  } else {
+    return K6502_Read( wAddr ) | (WORD)K6502_Read( wAddr + 1 ) << 8;
+  }
+}
 
 #endif /* !K6502_RW_H_INCLUDED */
